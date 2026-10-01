@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="RunnersBar">
+    <option name="activeGroup" value="Frontend" />
+    <option name="groups">
+      <list>
+        <RunnersBarGroup>
+          <option name="name" value="Frontend" />
+          <option name="entries">
+            <list>
+              <RunnersBarEntry>
+                <option name="configId" value="npm.dev" />
+                <option name="name" value="dev" />
+              </RunnersBarEntry>
+              <RunnersBarEntry>
+                <option name="configId" value="npm.build" />
+                <option name="name" value="build" />
+              </RunnersBarEntry>
+              <RunnersBarEntry>
+                <option name="configId" value="npm.test" />
+                <option name="name" value="test" />
+                <option name="debug" value="true" />
+              </RunnersBarEntry>
+              <RunnersBarEntry>
+                <option name="configId" value="npm.lint" />
+                <option name="name" value="lint" />
+              </RunnersBarEntry>
+              <RunnersBarEntry>
+                <option name="configId" value="Shell Script.Clear cache" />
+                <option name="name" value="Clear cache" />
+              </RunnersBarEntry>
+            </list>
+          </option>
+        </RunnersBarGroup>
+        <RunnersBarGroup>
+          <option name="name" value="Release" />
+          <option name="entries">
+            <list>
+              <RunnersBarEntry>
+                <option name="configId" value="npm.build" />
+                <option name="name" value="build" />
+              </RunnersBarEntry>
+              <RunnersBarEntry>
+                <option name="configId" value="Shell Script.Deploy staging" />
+                <option name="name" value="Deploy staging" />
+              </RunnersBarEntry>
+              <RunnersBarEntry>
+                <option name="configId" value="Shell Script.Deploy production" />
+                <option name="name" value="Deploy production" />
+              </RunnersBarEntry>
+            </list>
+          </option>
+        </RunnersBarGroup>
+      </list>
+    </option>
+  </component>
+  <component name="FileEditorManager">
+    <leaf>
+      <file leaf-file-name="server.js" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/src/server.js" />
+      </file>
+    </leaf>
+  </component>
+</project>

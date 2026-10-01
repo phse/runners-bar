@@ -1,0 +1,45 @@
+<idea-plugin>
+    <id>app.heckit.ide.runnersbar</id>
+    <name>Runners Bar</name>
+    <vendor url="https://heckit.app">heck\it</vendor>
+
+    <description><![CDATA[
+<p>
+  Your most used run configurations, one click away.
+  <b>Runners Bar</b> adds a slim bar right above the status bar that holds run configurations as tabs.
+  Click a tab and it runs. No dropdown, no searching, no switching the selected configuration.
+</p>
+
+<h3>Features</h3>
+<ul>
+  <li><b>One-click start</b>: every tab runs its configuration directly, or debugs it if you switched the tab to debug mode.</li>
+  <li><b>Arrow menu per tab</b>: debug once (or run once without the debugger), toggle debug mode, stop, open the configuration's settings, move or remove the tab.</li>
+  <li><b>Groups</b>: keep different sets of tabs, e.g. <i>Frontend</i>, <i>Backend</i> or <i>Deploy</i>, and switch between them. A configuration can be part of several groups.</li>
+  <li><b>Drag and drop</b>: reorder tabs by dragging them; drop a tab outside the bar to remove it.</li>
+  <li><b>Running state</b>: running configurations are highlighted.</li>
+  <li>Follows renamed configurations, keeps the bar per project and stores it in your personal workspace (not in version control).</li>
+</ul>
+
+<h3>Usage</h3>
+<ul>
+  <li>Click <b>+</b> on the left to add a run configuration or create a new group.</li>
+  <li>Show or hide the bar via <b>View | Appearance | Runners Bar</b>.</li>
+</ul>
+
+<p>Works in all JetBrains IDEs based on the IntelliJ Platform (PhpStorm, IntelliJ IDEA, WebStorm, PyCharm, GoLand, ...). UI available in English and German.</p>
+]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <resource-bundle>messages.RunnersBarBundle</resource-bundle>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <postStartupActivity implementation="app.heckit.ide.runnersbar.RunnersBarStartup"/>
+    </extensions>
+
+    <actions>
+        <action id="RunnersBar.Toggle" class="app.heckit.ide.runnersbar.ToggleRunnersBarAction">
+            <add-to-group group-id="UIToggleActions" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>
