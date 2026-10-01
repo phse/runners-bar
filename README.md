@@ -2,7 +2,7 @@
 
 <img src="marketplace/plugin-icon.png" width="360" alt="Runners Bar Icon für helles und dunkles Theme">
 
-Plugin-ID `app.heckit.ide.runnersbar` · Vendor heck\it ([heckit.app](https://heckit.app)) · Quellcode: https://github.com/phse/runners-bar
+Plugin-ID `app.heckit.ide.runnersbar` · Vendor heck\it ([heckit.app](https://heckit.app)) · [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/34701-runners-bar) · Quellcode: https://github.com/phse/runners-bar
 
 ![Runners Bar](marketplace/screenshots/01-runners-bar.png)
 
