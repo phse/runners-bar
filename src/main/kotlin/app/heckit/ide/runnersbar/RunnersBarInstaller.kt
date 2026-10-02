@@ -60,7 +60,7 @@ object RunnersBarInstaller {
         val statusBar = statusBarComponent(project) ?: return false
         val parent = statusBar.parent ?: return false
         val panel = RunnersBarService.getInstance(project).panel
-        panel.isVisible = isBarVisible
+        panel.isVisible = isBarVisible(project)
 
         if (parent is Host) return true
         val layout = parent.layout as? BorderLayout ?: run {
@@ -107,8 +107,12 @@ object RunnersBarInstaller {
         parent.repaint()
     }
 
+    /** Sichtbar, wenn global eingeschaltet und nicht für dieses Projekt ausgeblendet. */
+    fun isBarVisible(project: Project): Boolean =
+        isBarVisible && !RunnersBarService.getInstance(project).isHiddenInProject
+
     fun applyVisibility(project: Project) {
-        RunnersBarService.getInstance(project).panel.isVisible = isBarVisible
+        RunnersBarService.getInstance(project).panel.isVisible = isBarVisible(project)
     }
 
     private class Host(statusBar: JComponent, bar: JComponent) : JPanel(BorderLayout()) {

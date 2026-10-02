@@ -15,7 +15,7 @@
   <li><b>One-click start</b>: every tab runs its configuration directly, or debugs it if you switched the tab to debug mode.</li>
   <li><b>Arrow menu per tab</b>: debug once (or run once without the debugger), toggle debug mode, stop, open the configuration's settings, move or remove the tab.</li>
   <li><b>Groups</b>: keep different sets of tabs, e.g. <i>Frontend</i>, <i>Backend</i> or <i>Deploy</i>, and switch between them. A configuration can be part of several groups.</li>
-  <li><b>Drag and drop</b>: reorder tabs by dragging them; drop a tab outside the bar to remove it.</li>
+  <li><b>Drag and drop</b>: reorder tabs by dragging them like editor tabs; drag a tab out of the bar and drop it to remove it; press Escape to cancel.</li>
   <li><b>Running state</b>: running configurations are highlighted.</li>
   <li>Follows renamed configurations, keeps the bar per project and stores it in your personal workspace (not in version control).</li>
 </ul>
@@ -24,6 +24,8 @@
 <ul>
   <li>Click <b>+</b> on the left to add a run configuration or create a new group.</li>
   <li>Show or hide the bar via <b>View | Appearance | Runners Bar</b>.</li>
+  <li>Don't need it in a particular project? Choose <b>Hide in This Project</b> in the <b>+</b> menu,
+      or toggle <b>View | Appearance | Runners Bar in This Project</b>.</li>
 </ul>
 
 <p>Works in all JetBrains IDEs based on the IntelliJ Platform (PhpStorm, IntelliJ IDEA, WebStorm, PyCharm, GoLand, ...). UI available in English and German.</p>
@@ -34,12 +36,16 @@
     <resource-bundle>messages.RunnersBarBundle</resource-bundle>
 
     <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup id="Runners Bar" displayType="BALLOON" key="notification.group"/>
         <postStartupActivity implementation="app.heckit.ide.runnersbar.RunnersBarStartup"/>
     </extensions>
 
     <actions>
         <action id="RunnersBar.Toggle" class="app.heckit.ide.runnersbar.ToggleRunnersBarAction">
             <add-to-group group-id="UIToggleActions" anchor="last"/>
+        </action>
+        <action id="RunnersBar.ToggleProject" class="app.heckit.ide.runnersbar.ToggleRunnersBarInProjectAction">
+            <add-to-group group-id="UIToggleActions" anchor="after" relative-to-action="RunnersBar.Toggle"/>
         </action>
     </actions>
 </idea-plugin>

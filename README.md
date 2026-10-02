@@ -1,68 +1,77 @@
 # Runners Bar
 
-<img src="marketplace/plugin-icon.png" width="360" alt="Runners Bar Icon für helles und dunkles Theme">
+<img src="marketplace/plugin-icon.png" width="360" alt="Runners Bar icon for light and dark themes">
 
-Plugin-ID `app.heckit.ide.runnersbar` · Vendor heck\it ([heckit.app](https://heckit.app)) · [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/34701-runners-bar) · Quellcode: https://github.com/phse/runners-bar
+Plugin ID `app.heckit.ide.runnersbar` · Vendor heck\it ([heckit.app](https://heckit.app)) · [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/34701-runners-bar) · Source: https://github.com/phse/runners-bar
 
 ![Runners Bar](marketplace/screenshots/01-runners-bar.png)
 
-IntelliJ-Plugin (PhpStorm, IDEA, … ab 2026.1), das direkt über der Statuszeile eine schmale Leiste
-mit Lieblings-Run-Configurations einblendet.
+A plugin for JetBrains IDEs (PhpStorm, IntelliJ IDEA, … 2026.1 and later) that adds a slim bar
+with your favourite run configurations right above the status bar.
 
-- **+** (links) fügt eine Run Configuration hinzu oder legt eine neue Gruppe an (Popup mit Suche)
-- **Gruppen**: Gibt es mehr als eine, erscheint neben dem + ein Umschalter. Darüber wechselt,
-  benennt und löscht man Gruppen. Eine Konfiguration kann in mehreren Gruppen vorkommen.
-- **Drag & Drop**: Tabs lassen sich per Ziehen umsortieren. Außerhalb der Leiste loslassen
-  entfernt den Tab aus der Gruppe (Mülleimer-Icon und roter Rahmen zeigen das vorher an).
-- **Klick auf einen Tab** startet die Konfiguration sofort (Run, oder Debug wenn umgestellt)
-- **Pfeil** (oder Rechtsklick) öffnet das Menü:
-  - Einmalig debuggen / einmalig ohne Debugger ausführen
-  - Debug-Modus (Tab dauerhaft auf Debug umstellen)
-  - Stoppen (wenn sie läuft)
-  - Einstellungen… (Editor der Konfiguration)
-  - Nach links / Nach rechts
-  - Entfernen
-- Laufende Konfigurationen sind grün hinterlegt und haben einen Punkt am Icon.
-- Gibt es eine Konfiguration nicht mehr, bleibt der Tab mit Warn-Icon stehen, bis man ihn entfernt.
-  Umbenennungen werden mitgezogen.
-- Ein- und ausblenden über **View | Appearance | Runners Bar**.
+- **+** (on the left) adds a run configuration or creates a new group (popup with search).
+- **Groups**: as soon as there is more than one, a switcher appears next to the +. Use it to
+  switch, rename and delete groups. A configuration can be part of several groups.
+- **Drag and drop**: drag tabs to reorder them, just like editor tabs: the tab follows the mouse
+  and the other tabs make room. Dragged outside the bar, the tab turns red with a trash icon;
+  dropping it there removes it from the group. Press **Escape** while dragging to cancel.
+- **Clicking a tab** starts the configuration right away (run, or debug if switched to debug mode).
+- The **arrow** (or a right click) opens the menu:
+  - Debug once / run once without the debugger
+  - Debug mode (switch the tab to debug permanently)
+  - Stop (while it is running)
+  - Settings… (the configuration's editor)
+  - Move left / move right
+  - Remove
+- Running configurations have a green background and a dot on their icon.
+- If a configuration no longer exists, its tab stays with a warning icon until you remove it.
+  Renamed configurations are followed.
+- Show or hide the bar via **View | Appearance | Runners Bar** (all projects).
+- Hide it in the current project only: **Hide in This Project** in the **+** menu, or
+  **View | Appearance | Runners Bar in This Project**, which also brings it back.
 
-Die Einträge werden pro Projekt in `.idea/workspace.xml` gespeichert, sind also persönlich und
-landen nicht im VCS.
+Tabs, groups and the per-project visibility are stored per project in `.idea/workspace.xml`, so
+they are personal and don't end up in version control. The UI is available in English and German.
 
-## Bauen und Starten
+## Installation
 
-Gradle braucht ein JDK ab 17. Die Toolchain (JDK 25) lädt Gradle bei Bedarf selbst über foojay.
+In the IDE, go to *Settings | Plugins | Marketplace* and search for **Runners Bar**, or use the
+[Marketplace page](https://plugins.jetbrains.com/plugin/34701-runners-bar). Bugs and ideas are
+welcome as [GitHub issues](https://github.com/phse/runners-bar/issues).
+
+## Build and run
+
+Gradle needs JDK 17 or later. The toolchain (JDK 25) is downloaded by Gradle via foojay if needed.
 
 ```
-./gradlew runIde        # Sandbox-IDE mit Plugin starten
+./gradlew runIde        # start a sandbox IDE with the plugin
 ./gradlew buildPlugin   # build/distributions/runners-bar-<version>.zip
 ```
 
-Prüfen gegen die lokale IDE und die älteste unterstützte Version (`verifyOldestVersion`):
+Verify against the local IDE and the oldest supported version (`verifyOldestVersion`):
 
 ```
 ./gradlew verifyPlugin
 ```
 
-Installieren: *Settings | Plugins | ⚙ | Install Plugin from Disk…* und die ZIP auswählen.
+Install a self-built ZIP: *Settings | Plugins | ⚙ | Install Plugin from Disk…*
 
-Ohne weitere Einstellung lädt Gradle PhpStorm `platformVersion` (aus `gradle.properties`) als
-Zielplattform herunter. Mit einer installierten IDE geht es schneller: `local.properties` anlegen
-(wird nicht eingecheckt) mit z. B.
+By default Gradle downloads PhpStorm `platformVersion` (from `gradle.properties`) as the target
+platform. With an installed IDE it's faster: create `local.properties` (not checked in) containing
+e.g.
 
 ```
 platformLocalPath=/Applications/PhpStorm.app
 ```
 
-## Veröffentlichen (JetBrains Marketplace)
+## Publishing (JetBrains Marketplace)
 
-Die Beschreibung für den Marketplace steht in `src/main/resources/META-INF/plugin.xml`, die
-Change Notes in `build.gradle.kts`, das Icon in `META-INF/pluginIcon.svg` (helles Theme) und `pluginIcon_dark.svg` (dunkles Theme).
-Die IDE und der Marketplace lesen das Icon direkt aus der ZIP, es muss nicht extra hochgeladen werden.
-Das Vorschaubild `marketplace/plugin-icon.png` oben in dieser README nach einer Icon-Änderung neu
-erzeugen (Befehl unten). Frühere Entwürfe liegen in `marketplace/icon-proposals/`, das aktuelle
-Icon ist Variante `2a-pille-luftig`.
+The Marketplace description lives in `src/main/resources/META-INF/plugin.xml`, the change notes in
+`build.gradle.kts`, the icon in `META-INF/pluginIcon.svg` (light theme) and `pluginIcon_dark.svg`
+(dark theme). The IDE and the Marketplace read the icon straight from the ZIP, it doesn't have to be
+uploaded separately. After changing the icon, regenerate the preview `marketplace/plugin-icon.png`
+at the top of this README (command below). Earlier drafts are in `marketplace/icon-proposals/`, the
+current icon is variant `2a-pille-luftig`.
 
 ```
 T=$(mktemp -d)
@@ -73,49 +82,53 @@ magick -size 180x160 xc:'#2B2D30' $T/d.png -gravity center -composite $T/D.png
 magick $T/L.png $T/D.png +append marketplace/plugin-icon.png
 ```
 
-1. Version in `gradle.properties` hochzählen, Change Notes ergänzen.
+1. Bump the version in `gradle.properties`, add change notes.
 2. `./gradlew clean buildPlugin verifyPlugin`
-3. **Erster Upload nur von Hand:** https://plugins.jetbrains.com/plugin/add, ZIP aus
-   `build/distributions/` hochladen, Screenshots aus `marketplace/screenshots/` hinzufügen.
-   JetBrains prüft das Plugin danach (meist 1-2 Werktage).
-4. Spätere Versionen: Token unter https://plugins.jetbrains.com/author/me/tokens anlegen, dann
-   `PUBLISH_TOKEN=… ./gradlew publishPlugin`.
+3. Create a token at https://plugins.jetbrains.com/author/me/tokens, then
+   `PUBLISH_TOKEN=… ./gradlew publishPlugin`. Alternatively upload the ZIP from
+   `build/distributions/` by hand on the
+   [Marketplace page](https://plugins.jetbrains.com/plugin/34701-runners-bar). JetBrains reviews
+   every version before it is released.
+4. Tag the commit (`git tag v<version>`) and push.
 
-Signieren ist optional (Variablen `CERTIFICATE_CHAIN`, `PRIVATE_KEY`, `PRIVATE_KEY_PASSWORD`,
-siehe https://plugins.jetbrains.com/docs/intellij/plugin-signing.html).
+Signing is optional (variables `CERTIFICATE_CHAIN`, `PRIVATE_KEY`, `PRIVATE_KEY_PASSWORD`,
+see https://plugins.jetbrains.com/docs/intellij/plugin-signing.html).
 
-## Screenshots neu erzeugen
+## Regenerating the screenshots
 
 ```
 ./gradlew runIde -Pscreenshots=marketplace/screenshots
 ```
 
-Kopiert `marketplace/demo-project` nach `/Users/Shared/demo-shop` (damit kein Benutzerpfad im Bild
-steht), öffnet es in der Sandbox, startet `dev` und legt vier PNGs in
-`marketplace/screenshots/` ab (Leiste, Tab-Menü, Gruppen, Hinzufügen). Die IDE zeichnet ihr Fenster
-dafür selbst, Rechte für Bildschirmaufnahmen sind nicht nötig. Der Helfer liegt in
-`src/screenshot/` und wird nur mit `-Pscreenshots` mitgebaut, nie im Release.
+Copies `marketplace/demo-project` to `/Users/Shared/demo-shop` (so no user path shows up in the
+images), opens it in the sandbox, starts `dev` and writes four PNGs to `marketplace/screenshots/`
+(bar, tab menu, groups, add). The IDE paints its own window for this, no screen recording
+permission is needed. The helper lives in `src/screenshot/` and is only compiled with
+`-Pscreenshots`, never into a release.
 
-Voraussetzungen: Node unter `/usr/local/bin/node` (fest in den Demo-Run-Configurations) und
-`/Users/Shared/demo-shop` als vertrauenswürdiges Projekt in der Sandbox. Fragt die Sandbox beim
-ersten Lauf nach, einmal „Trust Project“ bestätigen und den Befehl erneut starten.
+Requirements: Node at `/usr/local/bin/node` (hard-coded in the demo run configurations) and
+`/Users/Shared/demo-shop` as a trusted project in the sandbox. If the sandbox asks on the first
+run, confirm "Trust Project" once and run the command again.
 
-## Technik
+## How it works
 
-Für den Bereich über der Statuszeile gibt es keinen offiziellen Extension Point. Das Plugin legt die
-Statuszeile deshalb in einen eigenen Wrapper (Leiste oben, Statuszeile darunter). Baut die IDE die
-Statuszeile neu ein (z. B. Präsentationsmodus), hängt sich die Leiste automatisch wieder davor. Beim
-Entladen des Plugins wird der Ursprungszustand wiederhergestellt.
+There is no official extension point for the area above the status bar. The plugin therefore wraps
+the status bar in its own container (bar on top, status bar below). If the IDE re-inserts the status
+bar (e.g. in presentation mode), the bar attaches itself again automatically. When the plugin is
+unloaded, the original state is restored.
 
-| Datei | Inhalt |
+| File | Contents |
 | --- | --- |
-| `RunnersBarInstaller.kt` | Startup-Activity, Einhängen über der Statuszeile |
-| `RunnersBarService.kt` | Projekt-Service, Persistenz, Einträge |
-| `RunnersBarPanel.kt` | Leiste und „+“-Popup |
-| `RunnersBarTab.kt` | Tab mit Klick-Start und Menü |
-| `RunnersBarExecution.kt` | Starten (Run/Debug) und Erkennen laufender Prozesse |
+| `RunnersBarInstaller.kt` | Startup activity, attaching above the status bar, visibility |
+| `RunnersBarService.kt` | Project service, persistence, entries |
+| `RunnersBarState.kt` | Persisted state (groups, entries, hidden per project) |
+| `RunnersBarPanel.kt` | The bar, the "+" popup and drag and drop |
+| `RunnersBarTab.kt` | Tab with click-to-run and menu |
+| `RunnersBarExecution.kt` | Starting (run/debug) and detecting running processes |
+| `ToggleRunnersBarAction.kt` | Toggles in *View \| Appearance* (global and per project) |
+| `RunnersBarBundle.kt` | UI texts (English, German) in `resources/messages/` |
 
-## Lizenz
+## License
 
-Apache License 2.0, siehe [`LICENSE`](LICENSE) und [`NOTICE`](NOTICE).
-Copyright 2026 Peter Heck (heck\it). Name und Logo sind von der Lizenz ausgenommen.
+Apache License 2.0, see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
+Copyright 2026 Peter Heck (heck\it). The name and logo are not covered by the license.

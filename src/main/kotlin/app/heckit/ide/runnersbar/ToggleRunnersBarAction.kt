@@ -18,3 +18,24 @@ class ToggleRunnersBarAction : DumbAwareToggleAction() {
 
     override fun getActionUpdateThread() = ActionUpdateThread.BGT
 }
+
+/** View | Appearance | Runners Bar in This Project */
+class ToggleRunnersBarInProjectAction : DumbAwareToggleAction() {
+    override fun update(e: AnActionEvent) {
+        super.update(e)
+        // Ist die Leiste global aus, hat der Projektschalter keine Wirkung.
+        e.presentation.isEnabled = e.project != null && RunnersBarInstaller.isBarVisible
+    }
+
+    override fun isSelected(e: AnActionEvent): Boolean {
+        val project = e.project ?: return false
+        return !RunnersBarService.getInstance(project).isHiddenInProject
+    }
+
+    override fun setSelected(e: AnActionEvent, state: Boolean) {
+        val project = e.project ?: return
+        RunnersBarService.getInstance(project).isHiddenInProject = !state
+    }
+
+    override fun getActionUpdateThread() = ActionUpdateThread.BGT
+}

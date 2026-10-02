@@ -53,6 +53,13 @@ intellijPlatform {
             untilBuild = provider { null }
         }
         changeNotes = """
+            <h3>0.2.0</h3>
+            <ul>
+              <li>Hide the bar in a single project: <i>Hide in This Project</i> in the + menu or
+                  <i>View | Appearance | Runners Bar in This Project</i>.</li>
+              <li>Drag and drop like editor tabs: the tab follows the mouse, the other tabs make room,
+                  and it turns red when dragged out of the bar to remove it. Escape cancels.</li>
+            </ul>
             <h3>0.1.0</h3>
             <ul>
               <li>First release: run configurations as tabs above the status bar.</li>
