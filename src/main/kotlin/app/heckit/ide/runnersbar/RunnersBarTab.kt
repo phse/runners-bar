@@ -17,8 +17,8 @@ import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
-import java.awt.AlphaComposite
 import java.awt.BorderLayout
+import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.Point
@@ -35,8 +35,11 @@ class RunnersBarTab(
     val entry: RunnersBarEntry,
     private val tracker: RunningTracker,
     private val bar: RunnersBarPanel,
+    /** Schwebende Kopie, die beim Ziehen der Maus folgt (siehe [RunnersBarPanel.dragMoved]). */
+    private val ghost: Boolean = false,
 ) : JPanel(BorderLayout()) {
 
+    /** Beim Ziehen ist der Tab in der Leiste nur ein leerer Platzhalter, die [ghost]-Kopie zeigt den Zustand. */
     enum class DragState { NONE, MOVE, REMOVE }
 
     var dragState = DragState.NONE
@@ -44,6 +47,7 @@ class RunnersBarTab(
             if (field == value) return
             field = value
             refresh()
+            revalidate()
         }
 
     private val service get() = RunnersBarService.getInstance(project)
@@ -52,6 +56,7 @@ class RunnersBarTab(
 
     init {
         isOpaque = false
+        background = JBColor.namedColor("StatusBar.background", UIUtil.getPanelBackground())
         border = JBUI.Borders.empty(1)
         add(main, BorderLayout.CENTER)
         add(arrow, BorderLayout.EAST)
@@ -81,7 +86,7 @@ class RunnersBarTab(
         main.icon = if (running && dragState != DragState.REMOVE) ExecutionUtil.getLiveIndicator(baseIcon) else baseIcon
         main.text = name
         main.foreground = if (settings == null) UIUtil.getContextHelpForeground() else UIUtil.getLabelForeground()
-        main.toolTipText = when {
+        main.toolTipText = if (ghost) null else when {
             settings == null -> RunnersBarBundle.message("tab.tooltip.missing", name)
             entry.debug -> RunnersBarBundle.message("tab.tooltip.debug", name)
             else -> RunnersBarBundle.message("tab.tooltip.run", name)
@@ -158,16 +163,15 @@ class RunnersBarTab(
             .also { it.showAbove(this) }
     }
 
+    /** Platzhalter: hält beim Verschieben die Lücke frei, beim Rausziehen schrumpft er auf null. */
+    override fun getPreferredSize(): Dimension {
+        val size = super.getPreferredSize()
+        return if (!ghost && dragState == DragState.REMOVE) Dimension(0, size.height) else size
+    }
+
     override fun paint(g: Graphics) {
-        if (dragState == DragState.NONE) return super.paint(g)
-        // Gezogener Tab wird halbtransparent dargestellt.
-        val g2 = g.create() as Graphics2D
-        try {
-            g2.composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f)
-            super.paint(g2)
-        } finally {
-            g2.dispose()
-        }
+        if (!ghost && dragState != DragState.NONE) return
+        super.paint(g)
     }
 
     override fun paintComponent(g: Graphics) {
@@ -176,8 +180,14 @@ class RunnersBarTab(
         try {
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
             val arc = JBUI.scale(8)
-            if (tracker.isRunning(entry.configId)) {
-                g2.color = RUNNING_BACKGROUND
+            val fill = when {
+                dragState == DragState.REMOVE -> REMOVE_BACKGROUND
+                tracker.isRunning(entry.configId) -> RUNNING_BACKGROUND
+                ghost -> background
+                else -> null
+            }
+            if (fill != null) {
+                g2.color = fill
                 g2.fillRoundRect(0, 0, width - 1, height - 1, arc, arc)
             }
             g2.color = if (dragState == DragState.REMOVE) JBColor.RED else JBColor.border()
@@ -189,6 +199,7 @@ class RunnersBarTab(
 
     private companion object {
         val RUNNING_BACKGROUND = JBColor(0xE6F4EA, 0x2B3A2F)
+        val REMOVE_BACKGROUND = JBColor(0xFADBD8, 0x5E2D2D)
     }
 }
 

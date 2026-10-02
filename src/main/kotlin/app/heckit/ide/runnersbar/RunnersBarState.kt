@@ -24,4 +24,7 @@ class RunnersBarGroup {
 class RunnersBarState {
     var groups: MutableList<RunnersBarGroup> = mutableListOf()
     var activeGroup: String = RunnersBarGroup.DEFAULT_GROUP
+
+    /** Leiste nur in diesem Projekt ausgeblendet (unabhängig vom globalen Schalter). */
+    var hidden: Boolean = false
 }
