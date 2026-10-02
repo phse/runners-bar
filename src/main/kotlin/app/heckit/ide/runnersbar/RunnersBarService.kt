@@ -41,6 +41,15 @@ class RunnersBarService(private val project: Project) : PersistentStateComponent
         fireChanged()
     }
 
+    /** Leiste nur in diesem Projekt ausblenden; der globale Schalter in View | Appearance bleibt davon unberührt. */
+    var isHiddenInProject: Boolean
+        get() = state.hidden
+        set(value) {
+            if (state.hidden == value) return
+            state.hidden = value
+            RunnersBarInstaller.applyVisibility(project)
+        }
+
     // ---- Gruppen ----
 
     private fun activeGroup(): RunnersBarGroup {

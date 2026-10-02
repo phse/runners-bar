@@ -4,6 +4,10 @@ import com.intellij.execution.RunManager
 import com.intellij.execution.RunManagerListener
 import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.icons.AllIcons
+import com.intellij.ide.IdeEventQueue
+import com.intellij.notification.NotificationAction
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionGroup
 import com.intellij.openapi.actionSystem.ActionUpdateThread
@@ -18,22 +22,28 @@ import com.intellij.openapi.ui.InputValidatorEx
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
+import com.intellij.openapi.util.Disposer
 import com.intellij.ui.JBColor
 import com.intellij.ui.awt.RelativePoint
 import com.intellij.util.ui.EmptyIcon
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import com.intellij.util.ui.WrapLayout
+import java.awt.AWTEvent
 import java.awt.BorderLayout
+import java.awt.Color
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Graphics
+import java.awt.GraphicsDevice.WindowTranslucency.PERPIXEL_TRANSLUCENT
 import java.awt.Point
 import java.awt.Rectangle
+import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
 import javax.swing.Icon
 import javax.swing.JComponent
 import javax.swing.JPanel
+import javax.swing.JWindow
 import javax.swing.SwingConstants
 import javax.swing.SwingUtilities
 
@@ -126,6 +136,8 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
         }
         group.add(Separator.getInstance())
         group.add(popupAction(RunnersBarBundle.message("group.new"), AllIcons.Actions.NewFolder) { newGroup() })
+        group.add(Separator.getInstance())
+        group.add(popupAction(RunnersBarBundle.message("bar.hide"), AllIcons.Actions.Close) { hideInProject() })
         return showActionPopup(RunnersBarBundle.message("bar.add.title"), group, anchor)
     }
 
@@ -145,6 +157,16 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
             removeGroup(active)
         })
         return showActionPopup(null, group, anchor)
+    }
+
+    private fun hideInProject() {
+        service.isHiddenInProject = true
+        NotificationGroupManager.getInstance().getNotificationGroup("Runners Bar")
+            .createNotification(RunnersBarBundle.message("notification.hidden"), NotificationType.INFORMATION)
+            .addAction(NotificationAction.createSimpleExpiring(RunnersBarBundle.message("notification.undo")) {
+                service.isHiddenInProject = false
+            })
+            .notify(project)
     }
 
     private fun newGroup() {
@@ -190,66 +212,122 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
 
     // ---- Drag & Drop ----
 
-    /** Aktualisiert die Einfügemarke bzw. den Entfernen-Zustand, während ein Tab gezogen wird. */
+    private var ghost: DragGhost? = null
+
+    /** Per Escape abgebrochenes Ziehen: weitere Mausbewegungen bis zum Loslassen ignorieren. */
+    private var cancelledDrag: RunnersBarTab? = null
+
+    /** Wie bei Editor-Tabs: Eine Kopie des Tabs folgt der Maus, die übrigen Tabs rücken zur Seite. */
     fun dragMoved(tab: RunnersBarTab, e: MouseEvent) {
+        if (tab === cancelledDrag) return
+        val ghost = ghost ?: DragGhost(tab, e).also { ghost = it }
         val outside = isOutside(e)
         tab.dragState = if (outside) RunnersBarTab.DragState.REMOVE else RunnersBarTab.DragState.MOVE
-        tabs.dropSlot = if (outside) -1 else tabs.slotAt(SwingUtilities.convertPoint(e.component, e.point, tabs))
+        ghost.update(e.locationOnScreen, outside)
+        if (!outside) tabs.place(tab, pointIn(tabs, e))
+        tabs.revalidate()
         tabs.repaint()
     }
 
     fun dragEnded(tab: RunnersBarTab, e: MouseEvent) {
+        if (tab === cancelledDrag) {
+            cancelledDrag = null
+            return
+        }
+        ghost?.dispose()
+        ghost = null
         val outside = isOutside(e)
-        val slot = tabs.slotAt(SwingUtilities.convertPoint(e.component, e.point, tabs))
         tab.dragState = RunnersBarTab.DragState.NONE
-        tabs.dropSlot = -1
+        if (outside) {
+            service.remove(tab.entry)
+            return
+        }
+        val from = service.entries.indexOf(tab.entry)
+        val to = tabComponents.indexOf(tab)
+        if (from >= 0 && to >= 0 && from != to) {
+            service.moveTo(tab.entry, if (to > from) to + 1 else to)
+        } else {
+            tabs.revalidate()
+            tabs.repaint()
+        }
+    }
+
+    /** Escape während des Ziehens: Tab zurück an die Ausgangsposition, nichts speichern. */
+    private fun cancelDrag(tab: RunnersBarTab, startIndex: Int) {
+        ghost?.dispose()
+        ghost = null
+        cancelledDrag = tab
+        tab.dragState = RunnersBarTab.DragState.NONE
+        if (tab.parent === tabs) tabs.setComponentZOrder(tab, startIndex)
+        tabs.revalidate()
         tabs.repaint()
-        if (outside) service.remove(tab.entry) else service.moveTo(tab.entry, slot)
     }
 
     private fun isOutside(e: MouseEvent): Boolean {
-        val p = SwingUtilities.convertPoint(e.component, e.point, this)
+        val p = pointIn(this, e)
         val margin = JBUI.scale(12)
         return !Rectangle(-margin, -margin, width + 2 * margin, height + 2 * margin).contains(p)
     }
 
-    private inner class TabsPanel : JPanel(WrapLayout(FlowLayout.LEFT, JBUI.scale(2), JBUI.scale(2))) {
-        /** Einfügeposition, an der die Marke gezeichnet wird; -1 = keine. */
-        var dropSlot = -1
+    /** Bildschirmkoordinaten statt e.point, weil der gezogene Tab während des Ziehens seine Position ändert. */
+    private fun pointIn(target: JComponent, e: MouseEvent): Point =
+        Point(e.locationOnScreen).also { SwingUtilities.convertPointFromScreen(it, target) }
 
+    /** Schwebende Kopie des gezogenen Tabs, eigenes Fenster, damit sie auch außerhalb der Leiste sichtbar bleibt. */
+    private inner class DragGhost(tab: RunnersBarTab, e: MouseEvent) {
+        private val copy = RunnersBarTab(project, tab.entry, tracker, this@RunnersBarPanel, ghost = true)
+        private val offset = SwingUtilities.convertPoint(e.component, e.point, tab)
+        private val disposable = Disposer.newDisposable("RunnersBar.drag")
+        private val window = JWindow(SwingUtilities.getWindowAncestor(this@RunnersBarPanel)).apply {
+            focusableWindowState = false
+            rootPane.putClientProperty("Window.shadow", false)
+            if (graphicsConfiguration.device.isWindowTranslucencySupported(PERPIXEL_TRANSLUCENT)) {
+                background = Color(0, 0, 0, 0)
+            }
+            contentPane = copy
+            size = tab.size
+        }
+
+        init {
+            // Vor dem Keymap-Dispatcher, sonst schluckt z. B. der Editor das Escape. Nur Swing, daher ohne Lock.
+            val startIndex = tabs.getComponentZOrder(tab)
+            IdeEventQueue.getInstance().addDispatcher(object : IdeEventQueue.NonLockedEventDispatcher {
+                override fun dispatch(e: AWTEvent): Boolean {
+                    if (e !is KeyEvent || e.keyCode != KeyEvent.VK_ESCAPE) return false
+                    if (e.id == KeyEvent.KEY_PRESSED) cancelDrag(tab, startIndex)
+                    return true
+                }
+            }, disposable)
+        }
+
+        fun update(screen: Point, remove: Boolean) {
+            copy.dragState = if (remove) RunnersBarTab.DragState.REMOVE else RunnersBarTab.DragState.MOVE
+            window.setLocation(screen.x - offset.x, screen.y - offset.y)
+            if (!window.isVisible) window.isVisible = true
+        }
+
+        fun dispose() {
+            Disposer.dispose(disposable)
+            window.dispose()
+        }
+    }
+
+    private inner class TabsPanel : JPanel(WrapLayout(FlowLayout.LEFT, JBUI.scale(2), JBUI.scale(2))) {
         init {
             isOpaque = false
         }
 
-        private val tabList get() = components.filterIsInstance<RunnersBarTab>()
-
-        /** Nächstgelegene Einfügeposition zu [p], auch über mehrere Zeilen hinweg. */
-        fun slotAt(p: Point): Int {
-            val list = tabList
-            if (list.isEmpty()) return 0
-            return (0..list.size).minBy { slot ->
-                val anchor = slotAnchor(list, slot)
-                val dx = (p.x - anchor.x).toDouble()
-                val dy = (p.y - anchor.y).toDouble()
-                dx * dx + 9 * dy * dy
-            }
-        }
-
-        private fun slotAnchor(list: List<RunnersBarTab>, slot: Int): Point {
-            val ref = list[slot.coerceAtMost(list.size - 1)]
-            val x = if (slot < list.size) ref.x else ref.x + ref.width
-            return Point(x, ref.y + ref.height / 2)
-        }
-
-        override fun paintChildren(g: Graphics) {
-            super.paintChildren(g)
-            val list = tabList
-            if (dropSlot < 0 || list.isEmpty()) return
-            val ref = list[dropSlot.coerceAtMost(list.size - 1)]
-            val gap = JBUI.scale(2)
-            val x = if (dropSlot < list.size) ref.x - gap / 2 - 1 else ref.x + ref.width + gap / 2 - 1
-            g.color = JBUI.CurrentTheme.Focus.focusColor()
-            g.fillRect(x, ref.y, JBUI.scale(2), ref.height)
+        /**
+         * Schiebt den gezogenen [tab] an die Stelle unter [p]: vor alle Tabs, deren Mitte links davon liegt
+         * (bzw. die in einer Zeile darüber stehen). Der Vergleich mit den Mitten verhindert ein Hin- und Herspringen.
+         */
+        fun place(tab: RunnersBarTab, p: Point) {
+            val others = components.filterIsInstance<RunnersBarTab>().filter { it !== tab }
+            if (others.isEmpty()) return
+            val y = p.y.coerceIn(others.minOf { it.y }, others.maxOf { it.y + it.height } - 1)
+            val index = others.count { it.y + it.height <= y || (y >= it.y && it.x + it.width / 2 < p.x) }
+            // setComponentZOrder verschiebt ohne removeNotify, das Ziehen läuft also ungestört weiter.
+            if (getComponentZOrder(tab) != index) setComponentZOrder(tab, index)
         }
     }
 
