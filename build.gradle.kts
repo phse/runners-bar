@@ -53,6 +53,15 @@ intellijPlatform {
             untilBuild = provider { null }
         }
         changeNotes = """
+            <h3>1.0.0</h3>
+            <ul>
+              <li>Create new run configurations right from the + menu; they are added to the bar automatically.</li>
+              <li>Position the bar at the top (below the toolbar) or at the bottom (above the status bar).</li>
+              <li>Align the tabs left, center or right, and put the controls (+, group switcher) on the left or right.</li>
+              <li>New settings page <i>Settings | Appearance &amp; Behavior | Runners Bar</i> and a
+                  <i>Runners Bar</i> submenu in the + menu for groups, hiding, position and alignment.</li>
+              <li>At the top, the bar continues the project color gradient of the toolbar.</li>
+            </ul>
             <h3>0.2.0</h3>
             <ul>
               <li>Hide the bar in a single project: <i>Hide in This Project</i> in the + menu or
@@ -102,6 +111,11 @@ val prepareScreenshotProject = tasks.register<Sync>("prepareScreenshotProject") 
 // Apache 2.0 verlangt, dass LICENSE und NOTICE mit dem Plugin verteilt werden.
 tasks.jar {
     from(files("LICENSE", "NOTICE")) { into("META-INF") }
+}
+
+// Ohne -Pscreenshots bleibt aus dem Build-Cache sonst ein leeres screenshot/-Verzeichnis in den Jars (auch im instrumentierten).
+tasks.withType<Zip>().configureEach {
+    includeEmptyDirs = false
 }
 
 tasks.runIde {

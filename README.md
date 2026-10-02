@@ -7,9 +7,13 @@ Plugin ID `app.heckit.ide.runnersbar` · Vendor heck\it ([heckit.app](https://he
 ![Runners Bar](marketplace/screenshots/01-runners-bar.png)
 
 A plugin for JetBrains IDEs (PhpStorm, IntelliJ IDEA, … 2026.1 and later) that adds a slim bar
-with your favourite run configurations right above the status bar.
+with your favourite run configurations above the status bar or below the toolbar.
 
-- **+** (on the left) adds a run configuration or creates a new group (popup with search).
+- **+** adds a run configuration (popup with search). **New Run Configuration** creates a new
+  one: pick the type, fill in the editor, and after *OK* it is added to the bar right away.
+- The **Runners Bar** submenu in the + menu creates a new group, hides the bar in the current
+  project, and switches position (top/bottom), tab alignment (left/center/right) and the side of
+  the controls (left/right).
 - **Groups**: as soon as there is more than one, a switcher appears next to the +. Use it to
   switch, rename and delete groups. A configuration can be part of several groups.
 - **Drag and drop**: drag tabs to reorder them, just like editor tabs: the tab follows the mouse
@@ -27,11 +31,16 @@ with your favourite run configurations right above the status bar.
 - If a configuration no longer exists, its tab stays with a warning icon until you remove it.
   Renamed configurations are followed.
 - Show or hide the bar via **View | Appearance | Runners Bar** (all projects).
-- Hide it in the current project only: **Hide in This Project** in the **+** menu, or
-  **View | Appearance | Runners Bar in This Project**, which also brings it back.
+- Hide it in the current project only: **Hide in This Project** in the + menu's **Runners Bar**
+  submenu, or **View | Appearance | Runners Bar in This Project**, which also brings it back.
+- **Settings | Appearance & Behavior | Runners Bar**: show or hide the bar, position *top* (below
+  the toolbar) or *bottom* (above the status bar), tabs *left*, *center* or *right*, controls
+  (+, group switcher) *left* or *right*. These settings apply to all projects. New tabs are always
+  appended on the right.
 
 Tabs, groups and the per-project visibility are stored per project in `.idea/workspace.xml`, so
-they are personal and don't end up in version control. The UI is available in English and German.
+they are personal and don't end up in version control. Position and alignment are IDE settings
+(`options/runnersBar.xml`). The UI is available in English and German.
 
 ## Installation
 
@@ -101,8 +110,8 @@ see https://plugins.jetbrains.com/docs/intellij/plugin-signing.html).
 ```
 
 Copies `marketplace/demo-project` to `/Users/Shared/demo-shop` (so no user path shows up in the
-images), opens it in the sandbox, starts `dev` and writes four PNGs to `marketplace/screenshots/`
-(bar, tab menu, groups, add). The IDE paints its own window for this, no screen recording
+images), opens it in the sandbox, starts `dev` and writes five PNGs to `marketplace/screenshots/`
+(bar, tab menu, groups, add, bar at the top). The IDE paints its own window for this, no screen recording
 permission is needed. The helper lives in `src/screenshot/` and is only compiled with
 `-Pscreenshots`, never into a release.
 
@@ -112,19 +121,21 @@ run, confirm "Trust Project" once and run the command again.
 
 ## How it works
 
-There is no official extension point for the area above the status bar. The plugin therefore wraps
-the status bar in its own container (bar on top, status bar below). If the IDE re-inserts the status
-bar (e.g. in presentation mode), the bar attaches itself again automatically. When the plugin is
-unloaded, the original state is restored.
+There is no official extension point for the area above the status bar or below the toolbar. The
+plugin therefore wraps a part of the frame in its own container with the bar on top: the status bar
+(position *bottom*) or the central area with editor and tool windows (position *top*). If the IDE
+re-inserts that part (e.g. in presentation mode), the bar attaches itself again automatically. When
+the plugin is unloaded, the original state is restored.
 
 | File | Contents |
 | --- | --- |
 | `RunnersBarInstaller.kt` | Startup activity, attaching above the status bar, visibility |
 | `RunnersBarService.kt` | Project service, persistence, entries |
 | `RunnersBarState.kt` | Persisted state (groups, entries, hidden per project) |
-| `RunnersBarPanel.kt` | The bar, the "+" popup and drag and drop |
+| `RunnersBarPanel.kt` | The bar, the "+" popup with its submenus, and drag and drop |
 | `RunnersBarTab.kt` | Tab with click-to-run and menu |
 | `RunnersBarExecution.kt` | Starting (run/debug) and detecting running processes |
+| `RunnersBarSettings.kt` | IDE settings (position, tab and control alignment) and the settings page |
 | `ToggleRunnersBarAction.kt` | Toggles in *View \| Appearance* (global and per project) |
 | `RunnersBarBundle.kt` | UI texts (English, German) in `resources/messages/` |
 
