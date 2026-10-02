@@ -1,7 +1,10 @@
 package app.heckit.ide.runnersbar.screenshot
 
+import app.heckit.ide.runnersbar.BarPosition
 import app.heckit.ide.runnersbar.RunnersBarExecution
 import app.heckit.ide.runnersbar.RunnersBarService
+import app.heckit.ide.runnersbar.RunnersBarSettings
+import app.heckit.ide.runnersbar.TabsAlignment
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -63,6 +66,20 @@ object ScreenshotMaker {
         }
         popupShot(frame, File(out, "03-groups.png")) { panel.showGroupPopup(panel.groupSwitcher) }
         popupShot(frame, File(out, "04-add.png")) { panel.showAddPopup(panel.addButton) }
+
+        // Leiste oben unter der Toolbar, Tabs mittig; danach die vorherigen Einstellungen wiederherstellen.
+        val settings = RunnersBarSettings.getInstance()
+        val previous = settings.position to settings.tabsAlignment
+        edt {
+            settings.position = BarPosition.TOP
+            settings.tabsAlignment = TabsAlignment.CENTER
+        }
+        Thread.sleep(1500)
+        shot(frame, File(out, "05-top.png"))
+        edt {
+            settings.position = previous.first
+            settings.tabsAlignment = previous.second
+        }
         log.warn("Runners Bar: screenshots written to $out")
     }
 

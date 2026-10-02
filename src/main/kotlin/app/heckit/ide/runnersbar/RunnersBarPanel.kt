@@ -3,6 +3,9 @@ package app.heckit.ide.runnersbar
 import com.intellij.execution.RunManager
 import com.intellij.execution.RunManagerListener
 import com.intellij.execution.RunnerAndConfigurationSettings
+import com.intellij.execution.configurations.ConfigurationFactory
+import com.intellij.execution.configurations.ConfigurationType
+import com.intellij.execution.impl.RunDialog
 import com.intellij.icons.AllIcons
 import com.intellij.ide.IdeEventQueue
 import com.intellij.notification.NotificationAction
@@ -16,12 +19,14 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.Separator
 import com.intellij.openapi.actionSystem.impl.SimpleDataContext
+import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.InputValidatorEx
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
+import com.intellij.openapi.wm.impl.IdeBackgroundUtil
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.JBColor
 import com.intellij.ui.awt.RelativePoint
@@ -69,22 +74,15 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
         it.onPopup = it.onClick
     }
 
+    /** „+“, Gruppen-Umschalter und Trennlinie; je nach Ausrichtung links oder rechts. */
+    private val controls = JPanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(2), JBUI.scale(2))).apply { isOpaque = false }
+    private val separatorLine = VerticalLine()
+
     init {
         isOpaque = true
         background = JBColor.namedColor("StatusBar.background", UIUtil.getPanelBackground())
-        border = JBUI.Borders.compound(
-            JBUI.Borders.customLineTop(JBColor.border()),
-            JBUI.Borders.empty(0, 4),
-        )
-
-        val left = JPanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(2), JBUI.scale(2))).apply {
-            isOpaque = false
-            add(addButton)
-            add(groupSwitcher)
-            add(VerticalLine())
-        }
-        add(left, BorderLayout.WEST)
         add(tabs, BorderLayout.CENTER)
+        applySettings()
 
         val connection = project.messageBus.connect(parent)
         connection.subscribe(RunnersBarListener.TOPIC, object : RunnersBarListener {
@@ -102,6 +100,44 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
             override fun stateLoaded(runManager: RunManager, isFirstLoadState: Boolean) = refreshTabs()
         })
         rebuild()
+    }
+
+    /** Übernimmt Position (Trennlinie oben oder unten) und Ausrichtung aus [RunnersBarSettings]. */
+    fun applySettings() {
+        val settings = RunnersBarSettings.getInstance()
+        // Oben geht die Leiste nahtlos in die Toolbar über, unten trennt eine Linie sie vom Editor.
+        border = if (settings.position == BarPosition.TOP) {
+            JBUI.Borders.empty(0, 4)
+        } else {
+            JBUI.Borders.compound(JBUI.Borders.customLineTop(JBColor.border()), JBUI.Borders.empty(0, 4))
+        }
+
+        val right = settings.controlsAlignment == ControlsAlignment.RIGHT
+        controls.removeAll()
+        (if (right) listOf(separatorLine, groupSwitcher, addButton) else listOf(addButton, groupSwitcher, separatorLine))
+            .forEach { controls.add(it) }
+        remove(controls)
+        add(controls, if (right) BorderLayout.EAST else BorderLayout.WEST)
+        (tabs.layout as FlowLayout).alignment = when (settings.tabsAlignment) {
+            TabsAlignment.LEFT -> FlowLayout.LEFT
+            TabsAlignment.CENTER -> FlowLayout.CENTER
+            TabsAlignment.RIGHT -> FlowLayout.RIGHT
+        }
+        // Die Tab-Fläche behält ihre Größe und würde sonst nicht neu angeordnet.
+        tabs.revalidate()
+        revalidate()
+        repaint()
+    }
+
+    /**
+     * Oben liegt die Leiste im Bereich, in dem die IDE den Fensterhintergrund mit dem Farbverlauf der Projektfarbe
+     * malt. Über [IdeBackgroundUtil.withFrameBackground] läuft der Verlauf durch die Leiste weiter, statt abzubrechen.
+     */
+    override fun paintComponent(g: Graphics) {
+        if (RunnersBarSettings.getInstance().position != BarPosition.TOP) return super.paintComponent(g)
+        val g2 = IdeBackgroundUtil.withFrameBackground(g, this)
+        g2.color = background
+        g2.fillRect(0, 0, width, height)
     }
 
     private fun rebuild() {
@@ -135,11 +171,73 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
             group.add(popupAction(settings.name, settings.configuration.icon) { service.add(settings) })
         }
         group.add(Separator.getInstance())
-        group.add(popupAction(RunnersBarBundle.message("group.new"), AllIcons.Actions.NewFolder) { newGroup() })
-        group.add(Separator.getInstance())
-        group.add(popupAction(RunnersBarBundle.message("bar.hide"), AllIcons.Actions.Close) { hideInProject() })
+        group.add(newConfigurationGroup())
+        group.add(barOptionsGroup())
         return showActionPopup(RunnersBarBundle.message("bar.add.title"), group, anchor)
     }
+
+    /** Untermenü mit allen Konfigurationstypen; Typen mit mehreren Varianten bekommen ein eigenes Untermenü. */
+    private fun newConfigurationGroup(): ActionGroup {
+        val group = submenu(RunnersBarBundle.message("bar.newConfig"), AllIcons.General.Add)
+        ConfigurationType.CONFIGURATION_TYPE_EP.extensionList
+            .filter { it.isManaged }
+            .map { type -> type to type.configurationFactories.filter { it.isApplicable(project) } }
+            .filter { (_, factories) -> factories.isNotEmpty() }
+            .sortedBy { (type, _) -> type.displayName.lowercase() }
+            .forEach { (type, factories) ->
+                if (factories.size == 1) {
+                    group.add(popupAction(type.displayName, type.icon) { createConfiguration(factories.single()) })
+                } else {
+                    val sub = submenu(type.displayName, type.icon)
+                    factories.forEach { factory -> sub.add(popupAction(factory.name, factory.icon) { createConfiguration(factory) }) }
+                    group.add(sub)
+                }
+            }
+        return group
+    }
+
+    /** Legt eine Konfiguration an, öffnet ihren Editor und nimmt sie nach „OK“ direkt in die aktive Gruppe auf. */
+    private fun createConfiguration(factory: ConfigurationFactory) {
+        val runManager = RunManager.getInstance(project)
+        val settings = runManager.createConfiguration(runManager.suggestUniqueName(factory.name, factory.type), factory)
+        if (!RunDialog.editConfiguration(project, settings, RunnersBarBundle.message("dialog.new.title"))) return
+        runManager.addConfiguration(settings)
+        service.add(settings)
+    }
+
+    /** Untermenü „Runners Bar“: Gruppe anlegen, ausblenden, Position und Ausrichtung. */
+    private fun barOptionsGroup(): ActionGroup {
+        val settings = RunnersBarSettings.getInstance()
+        fun check(selected: Boolean) = if (selected) AllIcons.Actions.Checked else EmptyIcon.ICON_16
+        return submenu(RunnersBarBundle.message("bar.options"), AllIcons.General.Settings).apply {
+            add(popupAction(RunnersBarBundle.message("group.new"), AllIcons.Actions.NewFolder) { newGroup() })
+            add(popupAction(RunnersBarBundle.message("bar.hide"), AllIcons.Actions.Close) { hideInProject() })
+            add(Separator.create(RunnersBarBundle.message("settings.position")))
+            add(popupAction(RunnersBarBundle.message("settings.position.top"), check(settings.position == BarPosition.TOP)) {
+                settings.position = BarPosition.TOP
+            })
+            add(popupAction(RunnersBarBundle.message("settings.position.bottom"), check(settings.position == BarPosition.BOTTOM)) {
+                settings.position = BarPosition.BOTTOM
+            })
+            add(Separator.create(RunnersBarBundle.message("settings.tabs")))
+            TabsAlignment.entries.forEach { value ->
+                add(popupAction(alignmentText(value.name), check(settings.tabsAlignment == value)) { settings.tabsAlignment = value })
+            }
+            add(Separator.create(RunnersBarBundle.message("settings.controls")))
+            ControlsAlignment.entries.forEach { value ->
+                add(popupAction(alignmentText(value.name), check(settings.controlsAlignment == value)) { settings.controlsAlignment = value })
+            }
+            add(Separator.getInstance())
+            add(popupAction(RunnersBarBundle.message("bar.settings"), null) {
+                ShowSettingsUtil.getInstance().showSettingsDialog(project, RunnersBarConfigurable::class.java)
+            })
+        }
+    }
+
+    private fun alignmentText(name: String): String = RunnersBarBundle.message("settings.${name.lowercase()}")
+
+    private fun submenu(text: String, icon: Icon?): DefaultActionGroup =
+        DefaultActionGroup(text, true).apply { templatePresentation.icon = icon }
 
     internal fun showGroupPopup(anchor: JComponent): JBPopup {
         val active = service.activeGroupName
@@ -353,7 +451,7 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
                 JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
                 true,
             )
-            .also { it.showAbove(anchor) }
+            .also { it.showAtBar(anchor) }
 }
 
 fun popupAction(text: String, icon: Icon?, enabled: Boolean = true, block: () -> Unit): AnAction =
@@ -366,8 +464,14 @@ fun popupAction(text: String, icon: Icon?, enabled: Boolean = true, block: () ->
         override fun getActionUpdateThread() = ActionUpdateThread.EDT
     }
 
-/** Zeigt ein Popup oberhalb der Komponente an (die Leiste sitzt ja am unteren Fensterrand). */
-fun JBPopup.showAbove(anchor: JComponent) {
-    val height = content.preferredSize.height
-    show(RelativePoint(anchor, Point(0, -height)))
+/**
+ * Zeigt ein Popup an der Leiste an: über der Komponente, wenn die Leiste unten sitzt, sonst darunter.
+ * Stehen die Bedienelemente rechts, schließt das Popup rechtsbündig mit der Komponente ab.
+ */
+fun JBPopup.showAtBar(anchor: JComponent) {
+    val settings = RunnersBarSettings.getInstance()
+    val size = content.preferredSize
+    val x = if (settings.controlsAlignment == ControlsAlignment.RIGHT) anchor.width - size.width else 0
+    val y = if (settings.position == BarPosition.TOP) anchor.height else -size.height
+    show(RelativePoint(anchor, Point(x, y)))
 }
