@@ -160,7 +160,7 @@ class RunnersBarTab(
                 JBPopupFactory.ActionSelectionAid.MNEMONICS,
                 true,
             )
-            .also { it.showAbove(this) }
+            .also { it.showAtBar(this) }
     }
 
     /** Platzhalter: hält beim Verschieben die Lücke frei, beim Rausziehen schrumpft er auf null. */
