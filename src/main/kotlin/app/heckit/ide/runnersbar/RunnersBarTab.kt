@@ -70,8 +70,16 @@ class RunnersBarTab(
         }
         main.dragListener = drag
         arrow.dragListener = drag
+        arrow.isVisible = bar.layout.showMenuArrow
         refresh()
     }
+
+    /** Ohne Pfeil bleibt das Menü per Rechtsklick erreichbar. */
+    var showMenuArrow: Boolean
+        get() = arrow.isVisible
+        set(value) {
+            arrow.isVisible = value
+        }
 
     fun refresh() {
         val settings = service.findSettings(entry)
@@ -160,7 +168,7 @@ class RunnersBarTab(
                 JBPopupFactory.ActionSelectionAid.MNEMONICS,
                 true,
             )
-            .also { it.showAtBar(this) }
+            .also { it.showAtBar(this, bar.layout) }
     }
 
     /** Platzhalter: hält beim Verschieben die Lücke frei, beim Rausziehen schrumpft er auf null. */

@@ -78,6 +78,10 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
     private val controls = JPanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(2), JBUI.scale(2))).apply { isOpaque = false }
     private val separatorLine = VerticalLine()
 
+    /** Zuletzt übernommene Darstellung, siehe [applySettings]. */
+    internal var layout: RunnersBarLayout = service.layout
+        private set
+
     init {
         isOpaque = true
         background = JBColor.namedColor("StatusBar.background", UIUtil.getPanelBackground())
@@ -102,9 +106,10 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
         rebuild()
     }
 
-    /** Übernimmt Position (Trennlinie oben oder unten) und Ausrichtung aus [RunnersBarSettings]. */
+    /** Übernimmt Position (Trennlinie oben oder unten), Ausrichtung und Menüpfeil aus [RunnersBarService.layout]. */
     fun applySettings() {
-        val settings = RunnersBarSettings.getInstance()
+        val settings = service.layout
+        layout = settings
         // Oben geht die Leiste nahtlos in die Toolbar über, unten trennt eine Linie sie vom Editor.
         border = if (settings.position == BarPosition.TOP) {
             JBUI.Borders.empty(0, 4)
@@ -123,6 +128,7 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
             TabsAlignment.CENTER -> FlowLayout.CENTER
             TabsAlignment.RIGHT -> FlowLayout.RIGHT
         }
+        tabComponents.forEach { it.showMenuArrow = settings.showMenuArrow }
         // Die Tab-Fläche behält ihre Größe und würde sonst nicht neu angeordnet.
         tabs.revalidate()
         revalidate()
@@ -134,7 +140,7 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
      * malt. Über [IdeBackgroundUtil.withFrameBackground] läuft der Verlauf durch die Leiste weiter, statt abzubrechen.
      */
     override fun paintComponent(g: Graphics) {
-        if (RunnersBarSettings.getInstance().position != BarPosition.TOP) return super.paintComponent(g)
+        if (layout.position != BarPosition.TOP) return super.paintComponent(g)
         val g2 = IdeBackgroundUtil.withFrameBackground(g, this)
         g2.color = background
         g2.fillRect(0, 0, width, height)
@@ -205,27 +211,38 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
         service.add(settings)
     }
 
-    /** Untermenü „Runners Bar“: Gruppe anlegen, ausblenden, Position und Ausrichtung. */
+    /**
+     * Untermenü „Runners Bar“: Gruppe anlegen, ausblenden, Position, Ausrichtung und Menüpfeil.
+     * Die Darstellung gilt nur für dieses Projekt; entspricht die Wahl der Vorgabe, folgt das Projekt wieder der Vorgabe.
+     */
     private fun barOptionsGroup(): ActionGroup {
-        val settings = RunnersBarSettings.getInstance()
+        val current = service.layout
+        val defaults = RunnersBarSettings.getInstance()
         fun check(selected: Boolean) = if (selected) AllIcons.Actions.Checked else EmptyIcon.ICON_16
+        fun <T> own(value: T, default: T): T? = value.takeUnless { it == default }
         return submenu(RunnersBarBundle.message("bar.options"), AllIcons.General.Settings).apply {
             add(popupAction(RunnersBarBundle.message("group.new"), AllIcons.Actions.NewFolder) { newGroup() })
             add(popupAction(RunnersBarBundle.message("bar.hide"), AllIcons.Actions.Close) { hideInProject() })
             add(Separator.create(RunnersBarBundle.message("settings.position")))
-            add(popupAction(RunnersBarBundle.message("settings.position.top"), check(settings.position == BarPosition.TOP)) {
-                settings.position = BarPosition.TOP
-            })
-            add(popupAction(RunnersBarBundle.message("settings.position.bottom"), check(settings.position == BarPosition.BOTTOM)) {
-                settings.position = BarPosition.BOTTOM
-            })
+            listOf(BarPosition.TOP, BarPosition.BOTTOM).forEach { value ->
+                add(popupAction(RunnersBarBundle.message("settings.position.${value.name.lowercase()}"), check(current.position == value)) {
+                    service.position = own(value, defaults.position)
+                })
+            }
             add(Separator.create(RunnersBarBundle.message("settings.tabs")))
             TabsAlignment.entries.forEach { value ->
-                add(popupAction(alignmentText(value.name), check(settings.tabsAlignment == value)) { settings.tabsAlignment = value })
+                add(popupAction(alignmentText(value.name), check(current.tabsAlignment == value)) {
+                    service.tabsAlignment = own(value, defaults.tabsAlignment)
+                })
             }
+            add(popupAction(RunnersBarBundle.message("bar.menuArrow"), check(current.showMenuArrow)) {
+                service.showMenuArrow = own(!current.showMenuArrow, defaults.showMenuArrow)
+            })
             add(Separator.create(RunnersBarBundle.message("settings.controls")))
             ControlsAlignment.entries.forEach { value ->
-                add(popupAction(alignmentText(value.name), check(settings.controlsAlignment == value)) { settings.controlsAlignment = value })
+                add(popupAction(alignmentText(value.name), check(current.controlsAlignment == value)) {
+                    service.controlsAlignment = own(value, defaults.controlsAlignment)
+                })
             }
             add(Separator.getInstance())
             add(popupAction(RunnersBarBundle.message("bar.settings"), null) {
@@ -258,11 +275,12 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
     }
 
     private fun hideInProject() {
-        service.isHiddenInProject = true
+        val previous = service.visible
+        service.setVisibleInProject(false)
         NotificationGroupManager.getInstance().getNotificationGroup("Runners Bar")
             .createNotification(RunnersBarBundle.message("notification.hidden"), NotificationType.INFORMATION)
             .addAction(NotificationAction.createSimpleExpiring(RunnersBarBundle.message("notification.undo")) {
-                service.isHiddenInProject = false
+                service.visible = previous
             })
             .notify(project)
     }
@@ -451,7 +469,7 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
                 JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
                 true,
             )
-            .also { it.showAtBar(anchor) }
+            .also { it.showAtBar(anchor, layout) }
 }
 
 fun popupAction(text: String, icon: Icon?, enabled: Boolean = true, block: () -> Unit): AnAction =
@@ -468,8 +486,7 @@ fun popupAction(text: String, icon: Icon?, enabled: Boolean = true, block: () ->
  * Zeigt ein Popup an der Leiste an: über der Komponente, wenn die Leiste unten sitzt, sonst darunter.
  * Stehen die Bedienelemente rechts, schließt das Popup rechtsbündig mit der Komponente ab.
  */
-fun JBPopup.showAtBar(anchor: JComponent) {
-    val settings = RunnersBarSettings.getInstance()
+fun JBPopup.showAtBar(anchor: JComponent, settings: RunnersBarLayout) {
     val size = content.preferredSize
     val x = if (settings.controlsAlignment == ControlsAlignment.RIGHT) anchor.width - size.width else 0
     val y = if (settings.position == BarPosition.TOP) anchor.height else -size.height

@@ -59,12 +59,13 @@ object RunnersBarInstaller {
             PropertiesComponent.getInstance().setValue(VISIBLE_KEY, value, true)
         }
 
+    /** Vorgabe für alle Projekte; Projekte mit eigenem Wert behalten ihn. */
     fun setBarVisibleEverywhere(visible: Boolean) {
         isBarVisible = visible
         openProjects().forEach { applyVisibility(it) }
     }
 
-    /** Nach Änderung von Position oder Ausrichtung: in allen offenen Projekten neu einhängen. */
+    /** Nach Änderung der Vorgaben für Position oder Ausrichtung: in allen offenen Projekten neu einhängen. */
     fun reinstallAll() {
         openProjects().forEach { install(it) }
     }
@@ -89,11 +90,12 @@ object RunnersBarInstaller {
             logger<RunnersBarInstaller>().warn("Runners Bar: unexpected status bar parent layout ${content.layout}")
             return true
         }
-        val panel = RunnersBarService.getInstance(project).panel
-        panel.isVisible = isBarVisible(project)
+        val service = RunnersBarService.getInstance(project)
+        val panel = service.panel
+        panel.isVisible = service.isVisible
         panel.applySettings()
 
-        val target = when (RunnersBarSettings.getInstance().position) {
+        val target = when (service.layout.position) {
             BarPosition.BOTTOM -> statusBar
             BarPosition.TOP -> unwrap(layout.getLayoutComponent(BorderLayout.CENTER)) ?: statusBar
         }
@@ -152,12 +154,9 @@ object RunnersBarInstaller {
         }
     }
 
-    /** Sichtbar, wenn global eingeschaltet und nicht für dieses Projekt ausgeblendet. */
-    fun isBarVisible(project: Project): Boolean =
-        isBarVisible && !RunnersBarService.getInstance(project).isHiddenInProject
-
     fun applyVisibility(project: Project) {
-        RunnersBarService.getInstance(project).panel.isVisible = isBarVisible(project)
+        val service = RunnersBarService.getInstance(project)
+        service.panel.isVisible = service.isVisible
     }
 
     private class Host(val target: JComponent, bar: JComponent) : JPanel(BorderLayout()) {

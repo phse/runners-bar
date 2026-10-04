@@ -53,6 +53,14 @@ intellijPlatform {
             untilBuild = provider { null }
         }
         changeNotes = """
+            <h3>1.1.0</h3>
+            <ul>
+              <li>The settings page now holds defaults for all projects; each project can override position,
+                  alignment and the menu arrow (in the settings page or the + menu's <i>Runners Bar</i> submenu).</li>
+              <li>Showing or hiding the bar in a project now overrides the default, so a single project can show
+                  the bar while it is hidden everywhere else.</li>
+              <li>Option to hide the menu arrow on the tabs; the menu stays available with a right click.</li>
+            </ul>
             <h3>1.0.0</h3>
             <ul>
               <li>Create new run configurations right from the + menu; they are added to the bar automatically.</li>
@@ -85,9 +93,11 @@ intellijPlatform {
         password = providers.environmentVariable("PRIVATE_KEY_PASSWORD")
     }
 
-    // Für ./gradlew publishPlugin (erst nach dem ersten manuellen Upload möglich).
+    // Für ./gradlew publishPlugin (erst nach dem ersten manuellen Upload möglich). Token aus der Umgebung
+    // oder global aus ~/.gradle/gradle.properties (jetbrainsMarketplaceToken=…), gilt für alle eigenen Plugins.
     publishing {
         token = providers.environmentVariable("PUBLISH_TOKEN")
+            .orElse(providers.gradleProperty("jetbrainsMarketplaceToken"))
     }
 
     // ./gradlew verifyPlugin prüft gegen die lokale IDE und die älteste unterstützte Version.
