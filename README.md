@@ -30,17 +30,21 @@ with your favourite run configurations above the status bar or below the toolbar
 - Running configurations have a green background and a dot on their icon.
 - If a configuration no longer exists, its tab stays with a warning icon until you remove it.
   Renamed configurations are followed.
-- Show or hide the bar via **View | Appearance | Runners Bar** (all projects).
-- Hide it in the current project only: **Hide in This Project** in the + menu's **Runners Bar**
-  submenu, or **View | Appearance | Runners Bar in This Project**, which also brings it back.
+- Show or hide the bar via **View | Appearance | Runners Bar** (default for all projects).
+- Show or hide it in the current project only: **Hide in This Project** in the + menu's
+  **Runners Bar** submenu, or **View | Appearance | Runners Bar in This Project**. The project
+  setting wins over the default, so a project can also show the bar while it is off by default.
 - **Settings | Appearance & Behavior | Runners Bar**: show or hide the bar, position *top* (below
   the toolbar) or *bottom* (above the status bar), tabs *left*, *center* or *right*, controls
-  (+, group switcher) *left* or *right*. These settings apply to all projects. New tabs are always
-  appended on the right.
+  (+, group switcher) *left* or *right*, menu arrow on the tabs shown or hidden (the menu is
+  always available with a right click). These are the **defaults for all projects**. Below them,
+  each project can override every value or keep *Default*. The + menu's **Runners Bar** submenu
+  changes the current project only; choosing the default value there makes the project follow
+  the default again. New tabs are always appended on the right.
 
 Tabs, groups and the per-project visibility are stored per project in `.idea/workspace.xml`, so
-they are personal and don't end up in version control. Position and alignment are IDE settings
-(`options/runnersBar.xml`). The UI is available in English and German.
+they are personal and don't end up in version control, together with the project's own layout
+values. The defaults are IDE settings (`options/runnersBar.xml`). The UI is available in English and German.
 
 ## Installation
 
@@ -94,7 +98,9 @@ magick $T/L.png $T/D.png +append marketplace/plugin-icon.png
 1. Bump the version in `gradle.properties`, add change notes.
 2. `./gradlew clean buildPlugin verifyPlugin`
 3. Create a token at https://plugins.jetbrains.com/author/me/tokens, then
-   `PUBLISH_TOKEN=… ./gradlew publishPlugin`. Alternatively upload the ZIP from
+   `PUBLISH_TOKEN=… ./gradlew publishPlugin`. The token belongs to your JetBrains account, not to a
+   vendor, so it can be kept globally in `~/.gradle/gradle.properties` as
+   `jetbrainsMarketplaceToken=…`; then `./gradlew publishPlugin` is enough. Alternatively upload the ZIP from
    `build/distributions/` by hand on the
    [Marketplace page](https://plugins.jetbrains.com/plugin/34701-runners-bar). JetBrains reviews
    every version before it is released.
@@ -135,7 +141,7 @@ the plugin is unloaded, the original state is restored.
 | `RunnersBarPanel.kt` | The bar, the "+" popup with its submenus, and drag and drop |
 | `RunnersBarTab.kt` | Tab with click-to-run and menu |
 | `RunnersBarExecution.kt` | Starting (run/debug) and detecting running processes |
-| `RunnersBarSettings.kt` | IDE settings (position, tab and control alignment) and the settings page |
+| `RunnersBarSettings.kt` | Defaults (position, tab and control alignment, menu arrow) and the settings page with per-project overrides |
 | `ToggleRunnersBarAction.kt` | Toggles in *View \| Appearance* (global and per project) |
 | `RunnersBarBundle.kt` | UI texts (English, German) in `resources/messages/` |
 

@@ -37,18 +37,64 @@ class RunnersBarService(private val project: Project) : PersistentStateComponent
     override fun getState(): RunnersBarState = state
 
     override fun loadState(loaded: RunnersBarState) {
+        if (loaded.hidden) {
+            loaded.hidden = false
+            loaded.visible = false
+        }
         state = loaded
         fireChanged()
     }
 
-    /** Leiste nur in diesem Projekt ausblenden; der globale Schalter in View | Appearance bleibt davon unberührt. */
-    var isHiddenInProject: Boolean
-        get() = state.hidden
+    /** Sichtbarkeit nur in diesem Projekt; null = Vorgabe aus View | Appearance | Runners Bar. */
+    var visible: Boolean?
+        get() = state.visible
         set(value) {
-            if (state.hidden == value) return
-            state.hidden = value
+            if (state.visible == value) return
+            state.visible = value
             RunnersBarInstaller.applyVisibility(project)
         }
+
+    val isVisible: Boolean get() = state.visible ?: RunnersBarInstaller.isBarVisible
+
+    /** Ein- oder ausblenden; entspricht das der Vorgabe, folgt das Projekt wieder der Vorgabe. */
+    fun setVisibleInProject(visible: Boolean) {
+        this.visible = visible.takeUnless { it == RunnersBarInstaller.isBarVisible }
+    }
+
+    // ---- Darstellung: eigene Werte dieses Projekts, null = Vorgabe aus RunnersBarSettings ----
+
+    val layout: RunnersBarLayout
+        get() {
+            val defaults = RunnersBarSettings.getInstance()
+            return RunnersBarLayout(
+                position = state.position ?: defaults.position,
+                controlsAlignment = state.controlsAlignment ?: defaults.controlsAlignment,
+                tabsAlignment = state.tabsAlignment ?: defaults.tabsAlignment,
+                showMenuArrow = state.showMenuArrow ?: defaults.showMenuArrow,
+            )
+        }
+
+    var position: BarPosition?
+        get() = state.position
+        set(value) = changeLayout(state.position, value) { state.position = it }
+
+    var controlsAlignment: ControlsAlignment?
+        get() = state.controlsAlignment
+        set(value) = changeLayout(state.controlsAlignment, value) { state.controlsAlignment = it }
+
+    var tabsAlignment: TabsAlignment?
+        get() = state.tabsAlignment
+        set(value) = changeLayout(state.tabsAlignment, value) { state.tabsAlignment = it }
+
+    var showMenuArrow: Boolean?
+        get() = state.showMenuArrow
+        set(value) = changeLayout(state.showMenuArrow, value) { state.showMenuArrow = it }
+
+    private fun <T> changeLayout(old: T, new: T, assign: (T) -> Unit) {
+        if (old == new) return
+        assign(new)
+        RunnersBarInstaller.install(project)
+    }
 
     // ---- Gruppen ----
 

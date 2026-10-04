@@ -25,6 +25,13 @@ class RunnersBarState {
     var groups: MutableList<RunnersBarGroup> = mutableListOf()
     var activeGroup: String = RunnersBarGroup.DEFAULT_GROUP
 
-    /** Leiste nur in diesem Projekt ausgeblendet (unabhängig vom globalen Schalter). */
+    /** Bis 1.0.0: Leiste in diesem Projekt ausgeblendet. Wird beim Laden in [visible] übernommen. */
     var hidden: Boolean = false
+
+    // Sichtbarkeit und Darstellung nur für dieses Projekt; null = Vorgabe.
+    var visible: Boolean? = null
+    var position: BarPosition? = null
+    var controlsAlignment: ControlsAlignment? = null
+    var tabsAlignment: TabsAlignment? = null
+    var showMenuArrow: Boolean? = null
 }
