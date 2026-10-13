@@ -168,18 +168,40 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
     // ---- Popups ----
 
     internal fun showAddPopup(anchor: JComponent): JBPopup {
-        val candidates = RunManager.getInstance(project).allSettings.filter { !service.contains(it) }
+        val candidates = RunManager.getInstance(project).allSettings.filter { !service.contains(it) && !it.isTemporary }
+        val temporary = service.temporarySettings
+        val commands = service.recentCommands
         val group = DefaultActionGroup()
-        if (candidates.isEmpty()) {
+        if (candidates.isEmpty() && temporary.isEmpty() && commands.isEmpty()) {
             group.add(popupAction(RunnersBarBundle.message("bar.add.nothing"), null, enabled = false) {})
         }
         candidates.forEach { settings ->
             group.add(popupAction(settings.name, settings.configuration.icon) { service.add(settings) })
         }
+        if (temporary.isNotEmpty() || commands.isNotEmpty()) {
+            group.add(Separator.getInstance())
+            val sub = submenu(RunnersBarBundle.message("bar.add.temporary"), AllIcons.Actions.Lightning)
+            temporary.forEach { settings ->
+                sub.add(popupAction(settings.name, settings.configuration.icon) { addTemporary(settings) })
+            }
+            if (temporary.isNotEmpty() && commands.isNotEmpty()) sub.add(Separator.getInstance())
+            commands.forEach { run ->
+                sub.add(popupAction(run.command, AllIcons.Nodes.Console) {
+                    askConfigurationName(project, run.command, RunnersBarBundle.message("dialog.keep.title"))?.let { service.keep(run, it) }
+                })
+            }
+            group.add(sub)
+        }
         group.add(Separator.getInstance())
         group.add(newConfigurationGroup())
         group.add(barOptionsGroup())
         return showActionPopup(RunnersBarBundle.message("bar.add.title"), group, anchor)
+    }
+
+    /** Temporäre Konfigurationen heißen oft wie der ganze Befehl: vor dem Behalten den Namen abfragen. */
+    private fun addTemporary(settings: RunnerAndConfigurationSettings) {
+        val name = askConfigurationName(project, settings.name, RunnersBarBundle.message("dialog.keep.title")) ?: return
+        service.keep(settings, name)
     }
 
     /** Untermenü mit allen Konfigurationstypen; Typen mit mehreren Varianten bekommen ein eigenes Untermenü. */
@@ -470,6 +492,15 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
                 true,
             )
             .also { it.showAtBar(anchor, layout) }
+}
+
+/** Fragt einen Namen für eine Run Configuration ab; null bei Abbruch. */
+fun askConfigurationName(project: Project, initial: String, title: String): String? {
+    val validator = object : InputValidatorEx {
+        override fun getErrorText(inputString: String): String? =
+            if (inputString.isBlank()) RunnersBarBundle.message("group.name.empty") else null
+    }
+    return Messages.showInputDialog(project, RunnersBarBundle.message("group.name.label"), title, null, initial, validator)?.trim()
 }
 
 fun popupAction(text: String, icon: Icon?, enabled: Boolean = true, block: () -> Unit): AnAction =

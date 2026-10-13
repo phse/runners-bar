@@ -149,6 +149,9 @@ class RunnersBarTab(
         group.add(popupAction(RunnersBarBundle.message("menu.settings"), AllIcons.General.Settings, settings != null) {
             settings?.let { RunDialog.editConfiguration(project, it, RunnersBarBundle.message("dialog.edit.title")) }
         })
+        group.add(popupAction(RunnersBarBundle.message("menu.rename"), AllIcons.Actions.Edit, settings != null) {
+            settings?.let { s -> askConfigurationName(project, s.name, RunnersBarBundle.message("dialog.rename.title"))?.let { service.rename(s, it) } }
+        })
         val entries = service.entries
         val index = entries.indexOf(entry)
         group.add(popupAction(RunnersBarBundle.message("menu.moveLeft"), AllIcons.Actions.Back, index > 0) {

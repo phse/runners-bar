@@ -1,5 +1,7 @@
 package app.heckit.ide.runnersbar
 
+import com.intellij.execution.ExecutionListener
+import com.intellij.execution.ExecutionManager
 import com.intellij.execution.RunManager
 import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.openapi.Disposable
@@ -8,6 +10,9 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.components.StoragePathMacros
+import com.intellij.execution.process.ProcessHandler
+import com.intellij.ide.actions.runAnything.execution.RunAnythingRunProfile
+import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.project.Project
 import com.intellij.util.messages.Topic
 
@@ -30,6 +35,68 @@ interface RunnersBarListener {
 class RunnersBarService(private val project: Project) : PersistentStateComponent<RunnersBarState>, Disposable {
 
     private var state = RunnersBarState()
+
+    /**
+     * Zuletzt gestartete Konfigurationen, die die IDE nicht kennt: z. B. startet Run Anything „npm run dev“ über eine
+     * Konfiguration, die nie im RunManager landet, also auch nicht unter den temporären. Nur im Speicher.
+     */
+    private val unsavedRuns = ArrayDeque<RunnerAndConfigurationSettings>()
+
+    /** Shell-Befehl, den Run Anything ohne Konfiguration ausgeführt hat (z. B. „echo x“). */
+    data class CommandRun(val command: String, val workingDirectory: String?)
+
+    private val commandRuns = ArrayDeque<CommandRun>()
+
+    /** Zuletzt in Run Anything ausgeführte Shell-Befehle; leer ohne Shell-Script-Plugin. */
+    val recentCommands: List<CommandRun> get() = if (RunnersBarShell.isAvailable) commandRuns.toList() else emptyList()
+
+    /** Macht aus einem Befehl eine Shell-Script-Konfiguration namens [name] und nimmt sie in die Leiste auf. */
+    fun keep(run: CommandRun, name: String) {
+        commandRuns.remove(run)
+        add(RunnersBarShell.create(project, run.command, run.workingDirectory, name))
+    }
+
+    init {
+        project.messageBus.connect(this).subscribe(ExecutionManager.EXECUTION_TOPIC, object : ExecutionListener {
+            override fun processStarted(executorId: String, env: ExecutionEnvironment, handler: ProcessHandler) {
+                (env.runProfile as? RunAnythingRunProfile)?.let { profile ->
+                    val run = CommandRun(profile.originalCommand, profile.commandLine.workDirectory?.path)
+                    commandRuns.remove(run)
+                    commandRuns.addFirst(run)
+                    while (commandRuns.size > MAX_UNSAVED_RUNS) commandRuns.removeLast()
+                    return
+                }
+                val settings = env.runnerAndConfigurationSettings ?: return
+                if (isRegistered(settings)) return
+                unsavedRuns.removeIf { it === settings || it.uniqueID == settings.uniqueID }
+                unsavedRuns.addFirst(settings)
+                while (unsavedRuns.size > MAX_UNSAVED_RUNS) unsavedRuns.removeLast()
+            }
+        })
+    }
+
+    private fun isRegistered(settings: RunnerAndConfigurationSettings): Boolean =
+        RunManager.getInstance(project).allSettings.any { it === settings }
+
+    /** Temporäre Konfigurationen der IDE und zuletzt gestartete, die sie nicht kennt; neueste zuerst. */
+    val temporarySettings: List<RunnerAndConfigurationSettings>
+        get() {
+            unsavedRuns.removeIf { isRegistered(it) }
+            return unsavedRuns + RunManager.getInstance(project).tempConfigurationsList.filter { !contains(it) }
+        }
+
+    /** Behält eine temporäre oder unbekannte Konfiguration dauerhaft unter [name] und nimmt sie in die Leiste auf. */
+    fun keep(settings: RunnerAndConfigurationSettings, name: String) {
+        if (isRegistered(settings)) {
+            rename(settings, name)
+        } else {
+            unsavedRuns.remove(settings)
+            settings.name = name
+            settings.isTemporary = false
+            RunManager.getInstance(project).addConfiguration(settings)
+        }
+        add(settings)
+    }
 
     /** Die Leiste lebt so lange wie das Projekt und wird bei Bedarf neu in den Frame gehängt. */
     val panel: RunnersBarPanel by lazy { RunnersBarPanel(project, this) }
@@ -156,13 +223,22 @@ class RunnersBarService(private val project: Project) : PersistentStateComponent
     fun contains(settings: RunnerAndConfigurationSettings): Boolean =
         activeGroup().entries.any { it.configId == settings.uniqueID }
 
+    /** Temporäre Konfigurationen (z. B. aus Run Anything) werden dabei dauerhaft, sonst räumt die IDE sie wieder ab. */
     fun add(settings: RunnerAndConfigurationSettings) {
+        if (settings.isTemporary) RunManager.getInstance(project).makeStable(settings)
         if (contains(settings)) return
         activeGroup().entries.add(RunnersBarEntry().apply {
             configId = settings.uniqueID
             name = settings.name
         })
         fireChanged()
+    }
+
+    /** Umbenennen über addConfiguration: die IDE führt die ID nach und meldet die Änderung, siehe [configurationChanged]. */
+    fun rename(settings: RunnerAndConfigurationSettings, newName: String) {
+        if (settings.name == newName) return
+        settings.name = newName
+        RunManager.getInstance(project).addConfiguration(settings)
     }
 
     fun remove(entry: RunnersBarEntry) {
@@ -224,6 +300,8 @@ class RunnersBarService(private val project: Project) : PersistentStateComponent
     }
 
     companion object {
+        private const val MAX_UNSAVED_RUNS = 10
+
         fun getInstance(project: Project): RunnersBarService = project.getService(RunnersBarService::class.java)
     }
 }
