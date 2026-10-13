@@ -11,6 +11,14 @@ with your favourite run configurations above the status bar or below the toolbar
 
 - **+** adds a run configuration (popup with search). **New Run Configuration** creates a new
   one: pick the type, fill in the editor, and after *OK* it is added to the bar right away.
+- **Run Anything** (double Ctrl): `bar npm run dev` (any shell command after the prefix) creates a
+  Shell Script configuration for the command in the selected directory, adds it to the bar and
+  runs it. The prefix `bar` can be changed in the settings (one value for all projects). Needs
+  the bundled Shell Script plugin.
+- Configurations that Run Anything (or the IDE) created **temporarily** appear in the + menu
+  in the *Temporary Configurations* submenu, together with shell commands recently run through
+  Run Anything (those become Shell Script configurations). Adding one asks for a name and keeps it
+  for good.
 - The **Runners Bar** submenu in the + menu creates a new group, hides the bar in the current
   project, and switches position (top/bottom), tab alignment (left/center/right) and the side of
   the controls (left/right).
@@ -25,6 +33,7 @@ with your favourite run configurations above the status bar or below the toolbar
   - Debug mode (switch the tab to debug permanently)
   - Stop (while it is running)
   - Settings… (the configuration's editor)
+  - Rename…
   - Move left / move right
   - Remove
 - Running configurations have a green background and a dot on their icon.

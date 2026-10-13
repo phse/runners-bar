@@ -42,6 +42,8 @@ dependencies {
         } else {
             create(IntelliJPlatformType.PhpStorm, providers.gradleProperty("platformVersion").get())
         }
+        // Shell Script: optional, für „bar <Befehl>“ in Run Anything.
+        bundledPlugin("com.jetbrains.sh")
     }
 }
 
@@ -53,6 +55,15 @@ intellijPlatform {
             untilBuild = provider { null }
         }
         changeNotes = """
+            <h3>1.2.0</h3>
+            <ul>
+              <li>Run Anything: <code>bar &lt;command&gt;</code> creates a shell script configuration for the command,
+                  adds it to the bar and runs it. The prefix can be changed in the settings (for all projects).</li>
+              <li>Temporary configurations (e.g. created by Run Anything) are listed in the + menu's
+                  <i>Temporary Configurations</i> submenu, together with shell commands
+                  recently run through Run Anything; adding one asks for a name and keeps it for good.</li>
+              <li>Rename a configuration right from the tab menu.</li>
+            </ul>
             <h3>1.1.0</h3>
             <ul>
               <li>The settings page now holds defaults for all projects; each project can override position,

@@ -18,6 +18,7 @@
   <li><b>Drag and drop</b>: reorder tabs by dragging them like editor tabs; drag a tab out of the bar and drop it to remove it; press Escape to cancel.</li>
   <li><b>New configurations</b>: create a run configuration from the + menu, it lands in the bar right away.</li>
   <li><b>Your layout</b>: place the bar below the toolbar or above the status bar, align the tabs left, center or right, put the controls on either side and hide the menu arrow if you prefer the right click. Set your defaults once and override them per project.</li>
+  <li><b>Run Anything</b>: type <code>bar npm run dev</code> (or any shell command) in Run Anything to create a tab for it and run it. Configurations that Run Anything creates temporarily are kept for good once you add them to the bar.</li>
   <li><b>Running state</b>: running configurations are highlighted.</li>
   <li>Follows renamed configurations, keeps the bar per project and stores it in your personal workspace (not in version control).</li>
 </ul>
@@ -33,9 +34,12 @@
 </ul>
 
 <p>Works in all JetBrains IDEs based on the IntelliJ Platform (PhpStorm, IntelliJ IDEA, WebStorm, PyCharm, GoLand, ...). UI available in English and German.</p>
+
+<p>Like Runners Bar? You can <a href="https://ko-fi.com/phse_de">buy me a coffee on Ko-fi</a>. It helps keep it free and maintained. More tools at <a href="https://heckit.app">heckit.app</a>.</p>
 ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
+    <depends optional="true" config-file="runnersBar-sh.xml">com.jetbrains.sh</depends>
 
     <resource-bundle>messages.RunnersBarBundle</resource-bundle>
 

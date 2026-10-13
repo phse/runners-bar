@@ -1,0 +1,5 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <runAnything.executionProvider implementation="app.heckit.ide.runnersbar.RunnersBarRunAnythingProvider"/>
+    </extensions>
+</idea-plugin>

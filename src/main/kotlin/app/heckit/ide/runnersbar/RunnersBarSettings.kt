@@ -12,6 +12,8 @@ import com.intellij.ui.dsl.builder.Panel
 import com.intellij.ui.dsl.builder.bind
 import com.intellij.ui.dsl.builder.bindItem
 import com.intellij.ui.dsl.builder.bindSelected
+import com.intellij.ui.dsl.builder.bindText
+import com.intellij.ui.dsl.builder.columns
 import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.dsl.listCellRenderer.textListCellRenderer
 import kotlin.reflect.KMutableProperty0
@@ -30,6 +32,13 @@ class RunnersBarSettingsState {
     var controlsAlignment: ControlsAlignment = ControlsAlignment.LEFT
     var tabsAlignment: TabsAlignment = TabsAlignment.LEFT
     var showMenuArrow: Boolean = true
+
+    /** Präfix in Run Anything, das aus einem Befehl einen Tab macht (z. B. „bar npm run dev“). */
+    var runAnythingPrefix: String = DEFAULT_RUN_ANYTHING_PREFIX
+
+    companion object {
+        const val DEFAULT_RUN_ANYTHING_PREFIX = "bar"
+    }
 }
 
 /** Darstellung, wie sie in einem Projekt tatsächlich gilt: eigener Wert des Projekts, sonst die Vorgabe. */
@@ -86,6 +95,13 @@ class RunnersBarSettings : PersistentStateComponent<RunnersBarSettingsState> {
             RunnersBarInstaller.reinstallAll()
         }
 
+    /** Gilt für alle Projekte; leer = Vorgabe. */
+    var runAnythingPrefix: String
+        get() = state.runAnythingPrefix.trim().ifEmpty { RunnersBarSettingsState.DEFAULT_RUN_ANYTHING_PREFIX }
+        set(value) {
+            state.runAnythingPrefix = value.trim()
+        }
+
     companion object {
         fun getInstance(): RunnersBarSettings =
             ApplicationManager.getApplication().getService(RunnersBarSettings::class.java)
@@ -122,6 +138,14 @@ class RunnersBarConfigurable(private val project: Project) : BoundConfigurable(R
                     checkBox(RunnersBarBundle.message("settings.menuArrow"))
                         .bindSelected(settings::showMenuArrow)
                         .comment(RunnersBarBundle.message("settings.menuArrow.comment"))
+                }
+            }
+            group(RunnersBarBundle.message("settings.runAnything")) {
+                row(RunnersBarBundle.message("settings.runAnything.prefix")) {
+                    textField()
+                        .columns(10)
+                        .bindText(settings::runAnythingPrefix)
+                        .comment(RunnersBarBundle.message("settings.runAnything.comment"))
                 }
             }
             if (!project.isDefault) projectGroup(RunnersBarService.getInstance(project))
