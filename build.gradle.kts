@@ -55,6 +55,10 @@ intellijPlatform {
             untilBuild = provider { null }
         }
         changeNotes = """
+            <h3>1.3.1</h3>
+            <ul>
+              <li>Fixed a compatibility problem with 2026.1 when converting a shell script with a working directory.</li>
+            </ul>
             <h3>1.3.0</h3>
             <ul>
               <li>Run Anything: <code>bar &lt;command&gt;</code> asks for a name first. Commands another provider understands
