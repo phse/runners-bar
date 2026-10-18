@@ -3,6 +3,7 @@ package app.heckit.ide.runnersbar
 import com.intellij.execution.RunManager
 import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.execution.configurations.ConfigurationType
+import com.intellij.openapi.components.PathMacroManager
 import com.intellij.openapi.project.Project
 import com.intellij.sh.run.ShConfigurationType
 import com.intellij.sh.run.ShRunConfiguration
@@ -13,17 +14,43 @@ object RunnersBarShell {
 
     val isAvailable: Boolean get() = ConfigurationType.CONFIGURATION_TYPE_EP.extensionList.any { it.id == TYPE_ID }
 
-    /** Legt eine dauerhafte Konfiguration an, die [command] in [workingDirectory] ausführt. */
+    /** Legt eine dauerhafte Konfiguration an, die [command] in [workingDirectory] im Run-Fenster (nicht im Terminal) ausführt. */
     fun create(project: Project, command: String, workingDirectory: String?, name: String = command): RunnerAndConfigurationSettings {
         val runManager = RunManager.getInstance(project)
         val type = ShConfigurationType.getInstance()
         val settings = runManager.createConfiguration(runManager.suggestUniqueName(name, type), type)
         (settings.configuration as? ShRunConfiguration)?.apply {
             isExecuteScriptFile = false
+            isExecuteInTerminal = false
             scriptText = command
             workingDirectory?.let { scriptWorkingDirectory = it }
         }
         runManager.addConfiguration(settings)
         return settings
+    }
+
+    /** „Execute in the Terminal“ einer Shell-Script-Konfiguration; null bei anderen Typen oder ohne Shell-Script-Plugin. */
+    fun executesInTerminal(settings: RunnerAndConfigurationSettings): Boolean? =
+        if (isAvailable) (settings.configuration as? ShRunConfiguration)?.isExecuteInTerminal else null
+
+    /** Schaltet „Execute in the Terminal“ um; addConfiguration lässt die IDE die Änderung speichern. */
+    fun setExecuteInTerminal(project: Project, settings: RunnerAndConfigurationSettings, inTerminal: Boolean) {
+        val configuration = settings.configuration as? ShRunConfiguration ?: return
+        configuration.isExecuteInTerminal = inTerminal
+        RunManager.getInstance(project).addConfiguration(settings)
+    }
+
+    /** Befehl einer Shell-Script-Konfiguration ohne Skriptdatei; sonst null. */
+    fun command(settings: RunnerAndConfigurationSettings): String? {
+        if (!isAvailable) return null
+        val configuration = settings.configuration as? ShRunConfiguration ?: return null
+        return configuration.scriptText.trim().takeIf { !configuration.isExecuteScriptFile && it.isNotEmpty() && '\n' !in it }
+    }
+
+    /** Arbeitsverzeichnis einer Shell-Script-Konfiguration mit aufgelösten Makros wie $PROJECT_DIR$; null, wenn keins gesetzt ist. */
+    fun workingDirectory(project: Project, settings: RunnerAndConfigurationSettings): String? {
+        if (!isAvailable) return null
+        val directory = (settings.configuration as? ShRunConfiguration)?.scriptWorkingDirectory?.takeIf { it.isNotBlank() } ?: return null
+        return PathMacroManager.getInstance(project).expandPath(directory)
     }
 }

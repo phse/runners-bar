@@ -11,10 +11,12 @@ with your favourite run configurations above the status bar or below the toolbar
 
 - **+** adds a run configuration (popup with search). **New Run Configuration** creates a new
   one: pick the type, fill in the editor, and after *OK* it is added to the bar right away.
-- **Run Anything** (double Ctrl): `bar npm run dev` (any shell command after the prefix) creates a
-  Shell Script configuration for the command in the selected directory, adds it to the bar and
-  runs it. The prefix `bar` can be changed in the settings (one value for all projects). Needs
-  the bundled Shell Script plugin.
+- **Run Anything** (double Ctrl): `bar npm run dev` (any command after the prefix) asks for a name,
+  creates a configuration for the command in the selected directory, adds it to the bar and runs
+  it. If another Run Anything provider understands the command (npm scripts, Gradle, Maven, …), its
+  own configuration type is used; otherwise a Shell Script configuration that runs in the Run tool
+  window. The prefix `bar` can be changed in the settings (one value for all projects). Needs the
+  bundled Shell Script plugin.
 - Configurations that Run Anything (or the IDE) created **temporarily** appear in the + menu
   in the *Temporary Configurations* submenu, together with shell commands recently run through
   Run Anything (those become Shell Script configurations). Adding one asks for a name and keeps it
@@ -34,8 +36,10 @@ with your favourite run configurations above the status bar or below the toolbar
   - Stop (while it is running)
   - Settings… (the configuration's editor)
   - Rename…
-  - Move left / move right
-  - Remove
+  - Duplicate… (opens the copy's editor; after *OK* it is placed right behind the original)
+  - Shell (Shell Script configurations only): *Execute in the Terminal* and, if a Run Anything
+    provider understands the command, convert it to that provider's configuration (runs it)
+  - Remove (from the bar) / Delete… (deletes the configuration, after a confirmation)
 - Running configurations have a green background and a dot on their icon.
 - If a configuration no longer exists, its tab stays with a warning icon until you remove it.
   Renamed configurations are followed.

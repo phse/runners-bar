@@ -55,6 +55,17 @@ intellijPlatform {
             untilBuild = provider { null }
         }
         changeNotes = """
+            <h3>1.3.0</h3>
+            <ul>
+              <li>Run Anything: <code>bar &lt;command&gt;</code> asks for a name first. Commands another provider understands
+                  (npm scripts, Gradle, Maven, …) get that provider's configuration instead of a shell script;
+                  shell scripts now run in the Run tool window instead of the terminal.</li>
+              <li>Tab menu: <i>Duplicate…</i> copies a configuration, opens its editor and places it right behind the original.</li>
+              <li>Tab menu: <i>Delete…</i> deletes the configuration completely (after a confirmation).</li>
+              <li>Tab menu, <i>Shell</i> submenu: toggle <i>Execute in the Terminal</i> and convert a shell script
+                  to the matching configuration (e.g. npm), keeping name, position and working directory.</li>
+              <li>Move left / move right removed from the tab menu; use drag and drop.</li>
+            </ul>
             <h3>1.2.0</h3>
             <ul>
               <li>Run Anything: <code>bar &lt;command&gt;</code> creates a shell script configuration for the command,
