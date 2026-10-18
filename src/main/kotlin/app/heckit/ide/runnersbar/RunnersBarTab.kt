@@ -11,6 +11,7 @@ import com.intellij.openapi.actionSystem.impl.SimpleDataContext
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.DumbAwareToggleAction
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.ui.JBColor
@@ -152,16 +153,39 @@ class RunnersBarTab(
         group.add(popupAction(RunnersBarBundle.message("menu.rename"), AllIcons.Actions.Edit, settings != null) {
             settings?.let { s -> askConfigurationName(project, s.name, RunnersBarBundle.message("dialog.rename.title"))?.let { service.rename(s, it) } }
         })
-        val entries = service.entries
-        val index = entries.indexOf(entry)
-        group.add(popupAction(RunnersBarBundle.message("menu.moveLeft"), AllIcons.Actions.Back, index > 0) {
-            service.move(entry, -1)
+        group.add(popupAction(RunnersBarBundle.message("menu.duplicate"), AllIcons.Actions.Copy, settings != null) {
+            settings?.let { service.duplicate(entry, it, RunnersBarBundle.message("dialog.duplicate.title")) }
         })
-        group.add(popupAction(RunnersBarBundle.message("menu.moveRight"), AllIcons.Actions.Forward, index in 0 until entries.size - 1) {
-            service.move(entry, 1)
-        })
+        settings?.let { s ->
+            RunnersBarShell.executesInTerminal(s)?.let { inTerminal ->
+                val shell = submenu(RunnersBarBundle.message("menu.shell"), AllIcons.Nodes.Console)
+                shell.add(object : DumbAwareToggleAction(RunnersBarBundle.message("menu.executeInTerminal")) {
+                    override fun isSelected(e: AnActionEvent) = inTerminal
+                    override fun setSelected(e: AnActionEvent, state: Boolean) = RunnersBarShell.setExecuteInTerminal(project, s, state)
+                    override fun getActionUpdateThread() = ActionUpdateThread.EDT
+                })
+                val command = RunnersBarShell.command(s)
+                if (command != null && RunnersBarDelegate.find(RunnersBarDelegate.context(project, RunnersBarShell.workingDirectory(project, s)), command) != null) {
+                    shell.add(popupAction(RunnersBarBundle.message("menu.convert"), AllIcons.Actions.Refresh) {
+                        RunnersBarDelegate.convert(project, entry, s)
+                    })
+                }
+                group.add(shell)
+            }
+        }
         group.add(Separator.getInstance())
         group.add(popupAction(RunnersBarBundle.message("menu.remove"), AllIcons.General.Remove) { service.remove(entry) })
+        group.add(popupAction(RunnersBarBundle.message("menu.delete"), AllIcons.Actions.GC, settings != null) {
+            settings?.let { s ->
+                val answer = Messages.showYesNoDialog(
+                    project,
+                    RunnersBarBundle.message("dialog.delete.confirm", s.name),
+                    RunnersBarBundle.message("dialog.delete.title"),
+                    Messages.getWarningIcon(),
+                )
+                if (answer == Messages.YES) service.delete(s)
+            }
+        })
 
         return JBPopupFactory.getInstance()
             .createActionGroupPopup(

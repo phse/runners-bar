@@ -4,6 +4,7 @@ import com.intellij.execution.ExecutionListener
 import com.intellij.execution.ExecutionManager
 import com.intellij.execution.RunManager
 import com.intellij.execution.RunnerAndConfigurationSettings
+import com.intellij.execution.impl.RunDialog
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.Service
@@ -234,6 +235,21 @@ class RunnersBarService(private val project: Project) : PersistentStateComponent
         fireChanged()
     }
 
+    /** Ersetzt [old] durch [new] (Name bleibt, Platz in der Leiste auch) und entfernt die alte Konfiguration. */
+    fun replace(entry: RunnersBarEntry, old: RunnerAndConfigurationSettings, new: RunnerAndConfigurationSettings) {
+        val runManager = RunManager.getInstance(project)
+        if (new.isTemporary) runManager.makeStable(new)
+        if (runManager.allSettings.none { it === new }) {
+            new.isTemporary = false
+            runManager.addConfiguration(new)
+        }
+        runManager.removeConfiguration(old)
+        rename(new, old.name)
+        entry.configId = new.uniqueID
+        entry.name = new.name
+        fireChanged()
+    }
+
     /** Umbenennen über addConfiguration: die IDE führt die ID nach und meldet die Änderung, siehe [configurationChanged]. */
     fun rename(settings: RunnerAndConfigurationSettings, newName: String) {
         if (settings.name == newName) return
@@ -245,17 +261,33 @@ class RunnersBarService(private val project: Project) : PersistentStateComponent
         if (activeGroup().entries.remove(entry)) fireChanged()
     }
 
+    /** Löscht die Konfiguration aus der IDE und entfernt ihre Einträge aus allen Gruppen. */
+    fun delete(settings: RunnerAndConfigurationSettings) {
+        val id = settings.uniqueID
+        RunManager.getInstance(project).removeConfiguration(settings)
+        state.groups.forEach { group -> group.entries.removeIf { it.configId == id } }
+        fireChanged()
+    }
+
     fun setDebug(entry: RunnersBarEntry, debug: Boolean) {
         if (entry.debug == debug) return
         entry.debug = debug
         fireUpdated(entry)
     }
 
-    fun move(entry: RunnersBarEntry, delta: Int) {
-        val index = activeGroup().entries.indexOf(entry)
-        if (index < 0) return
-        // Beim Verschieben nach rechts liegt die Einfügeposition hinter dem Nachbarn.
-        moveTo(entry, if (delta > 0) index + delta + 1 else index + delta)
+    /** Kopiert [settings], öffnet den Editor der Kopie und reiht sie nach „OK“ direkt hinter [original] ein (mit dessen Debug-Modus). */
+    fun duplicate(original: RunnersBarEntry, settings: RunnerAndConfigurationSettings, title: String) {
+        val runManager = RunManager.getInstance(project)
+        val copy = runManager.createConfiguration(settings.configuration.clone(), settings.factory)
+        copy.name = runManager.suggestUniqueName(settings.name, settings.type)
+        if (!RunDialog.editConfiguration(project, copy, title)) return
+        runManager.addConfiguration(copy)
+        add(copy)
+        val index = activeGroup().entries.indexOf(original)
+        val entry = activeGroup().entries.firstOrNull { it.configId == copy.uniqueID } ?: return
+        entry.debug = original.debug
+        if (index >= 0) moveTo(entry, index + 1)
+        fireChanged()
     }
 
     /** Verschiebt [entry] an die Einfügeposition [slot] (0 = ganz vorne, size = ganz hinten). */

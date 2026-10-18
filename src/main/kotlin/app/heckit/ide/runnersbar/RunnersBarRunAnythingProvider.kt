@@ -14,7 +14,7 @@ import com.intellij.openapi.project.guessProjectDir
 import javax.swing.Icon
 
 /**
- * Run Anything: „bar <Befehl>“ legt eine Shell-Script-Konfiguration für den Befehl an, nimmt sie in die aktive
+ * Run Anything: „bar <Befehl>“ fragt nach einem Namen, legt eine Konfiguration für den Befehl an (eigene des passenden Anbieters, sonst Shell-Script), nimmt sie in die aktive
  * Gruppe der Runners Bar auf und startet sie. Das Präfix ist in den Einstellungen änderbar (für alle Projekte).
  * Nur registriert, wenn das Shell-Script-Plugin vorhanden ist (siehe runnersBar-sh.xml).
  */
@@ -46,9 +46,17 @@ class RunnersBarRunAnythingProvider : RunAnythingProviderBase<String>() {
 
     override fun execute(dataContext: DataContext, value: String) {
         val project = CommonDataKeys.PROJECT.getData(dataContext) ?: return
-        val settings = RunnersBarShell.create(project, command(value), workingDirectory(dataContext))
-        RunnersBarService.getInstance(project).add(settings)
-        RunnersBarExecution.execute(settings, debug = false)
+        val command = command(value)
+        val name = askConfigurationName(project, command, RunnersBarBundle.message("dialog.keep.title")) ?: return
+        val delegate = RunnersBarDelegate.find(dataContext, command)
+        if (delegate != null) {
+            RunnersBarDelegate.keepNextStarted(project) { RunnersBarService.getInstance(project).keep(it, name) }
+            delegate.second.execute(dataContext, delegate.first)
+        } else {
+            val settings = RunnersBarShell.create(project, command, workingDirectory(dataContext), name)
+            RunnersBarService.getInstance(project).add(settings)
+            RunnersBarExecution.execute(settings, debug = false)
+        }
         forgetCommand(project)
     }
 

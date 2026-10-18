@@ -275,9 +275,6 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
 
     private fun alignmentText(name: String): String = RunnersBarBundle.message("settings.${name.lowercase()}")
 
-    private fun submenu(text: String, icon: Icon?): DefaultActionGroup =
-        DefaultActionGroup(text, true).apply { templatePresentation.icon = icon }
-
     internal fun showGroupPopup(anchor: JComponent): JBPopup {
         val active = service.activeGroupName
         val group = DefaultActionGroup()
@@ -502,6 +499,9 @@ fun askConfigurationName(project: Project, initial: String, title: String): Stri
     }
     return Messages.showInputDialog(project, RunnersBarBundle.message("group.name.label"), title, null, initial, validator)?.trim()
 }
+
+fun submenu(text: String, icon: Icon?): DefaultActionGroup =
+    DefaultActionGroup(text, true).apply { templatePresentation.icon = icon }
 
 fun popupAction(text: String, icon: Icon?, enabled: Boolean = true, block: () -> Unit): AnAction =
     object : DumbAwareAction(text, null, icon) {
