@@ -51,6 +51,7 @@ object RunnersBarShell {
     fun workingDirectory(project: Project, settings: RunnerAndConfigurationSettings): String? {
         if (!isAvailable) return null
         val directory = (settings.configuration as? ShRunConfiguration)?.scriptWorkingDirectory?.takeIf { it.isNotBlank() } ?: return null
-        return PathMacroManager.getInstance(project).expandPath(directory)
+        // getService statt getInstance: in 2026.1 hat PathMacroManager noch kein Kotlin-Companion.
+        return project.getService(PathMacroManager::class.java).expandPath(directory)
     }
 }
