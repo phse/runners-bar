@@ -55,6 +55,10 @@ intellijPlatform {
             untilBuild = provider { null }
         }
         changeNotes = """
+            <h3>1.3.2</h3>
+            <ul>
+              <li>New plugin icon in the heck\it style.</li>
+            </ul>
             <h3>1.3.1</h3>
             <ul>
               <li>Fixed a compatibility problem with 2026.1 when converting a shell script with a working directory.</li>
