@@ -11,7 +11,7 @@ class RunnersBarEntry {
     var debug: Boolean = false
 }
 
-/** Vorbereitet für spätere Gruppen: aktuell gibt es genau eine Gruppe. */
+/** Tabs einer Gruppe; persönlich in [RunnersBarState] oder fürs Team in [RunnersBarSharedState]. */
 class RunnersBarGroup {
     var name: String = DEFAULT_GROUP
     var entries: MutableList<RunnersBarEntry> = mutableListOf()
@@ -34,4 +34,9 @@ class RunnersBarState {
     var controlsAlignment: ControlsAlignment? = null
     var tabsAlignment: TabsAlignment? = null
     var showMenuArrow: Boolean? = null
+}
+
+/** Gruppen, die mit dem Team geteilt werden: liegen in .idea/runnersBar.xml und damit in der Versionskontrolle. */
+class RunnersBarSharedState {
+    var groups: MutableList<RunnersBarGroup> = mutableListOf()
 }

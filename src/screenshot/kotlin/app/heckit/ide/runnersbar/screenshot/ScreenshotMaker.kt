@@ -1,6 +1,7 @@
 package app.heckit.ide.runnersbar.screenshot
 
 import app.heckit.ide.runnersbar.BarPosition
+import app.heckit.ide.runnersbar.RunnersBarConfigurable
 import app.heckit.ide.runnersbar.RunnersBarExecution
 import app.heckit.ide.runnersbar.RunnersBarService
 import app.heckit.ide.runnersbar.RunnersBarSettings
@@ -18,6 +19,10 @@ import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
 import javax.swing.JFrame
+import javax.swing.JPanel
+import javax.swing.JWindow
+import java.awt.BorderLayout
+import com.intellij.util.ui.JBUI
 import javax.swing.RootPaneContainer
 import javax.swing.SwingUtilities
 
@@ -80,7 +85,31 @@ object ScreenshotMaker {
             settings.position = previous.first
             settings.tabsAlignment = previous.second
         }
+        settingsShot(project, File(out, "06-settings.png"))
         log.warn("Runners Bar: screenshots written to $out")
+    }
+
+    /** Die Einstellungsseite in einem eigenen, unsichtbaren Fenster gezeichnet. */
+    private fun settingsShot(project: Project, file: File) = edt {
+        val configurable = RunnersBarConfigurable(project)
+        val component = configurable.createComponent()
+        configurable.reset()
+        val window = JWindow()
+        window.contentPane.add(JPanel(BorderLayout()).apply {
+            border = JBUI.Borders.empty(16)
+            add(component)
+        })
+        window.pack()
+        window.setSize(760, window.height + 80)
+        window.validate()
+        val image = BufferedImage((window.width * SCALE).toInt(), (window.height * SCALE).toInt(), BufferedImage.TYPE_INT_ARGB)
+        val g = image.createGraphics()
+        g.scale(SCALE, SCALE)
+        window.rootPane.paint(g)
+        g.dispose()
+        window.dispose()
+        configurable.disposeUIResources()
+        ImageIO.write(image, "png", file)
     }
 
     private fun popupShot(frame: JFrame, file: File, open: () -> JBPopup) {

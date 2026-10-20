@@ -55,6 +55,14 @@ intellijPlatform {
             untilBuild = provider { null }
         }
         changeNotes = """
+            <h3>1.4.0</h3>
+            <ul>
+              <li>Team groups: share a group with your team. It is stored in <code>.idea/runnersBar.xml</code>; commit the file
+                  and everyone gets the same tabs. Its run configurations are stored as project files so they exist for everyone.
+                  Share or stop sharing from the group switcher, the + menu's <i>Runners Bar</i> submenu or the settings.</li>
+              <li>Redesigned settings page: one table with the defaults for all projects next to the values of the current project,
+                  plus the project's groups with a <i>Share with the team</i> checkbox.</li>
+            </ul>
             <h3>1.3.2</h3>
             <ul>
               <li>New plugin icon in the heck\it style.</li>

@@ -30,7 +30,7 @@ interface RunnersBarListener {
     }
 }
 
-/** Hält Gruppen und Einträge der Runners Bar eines Projekts (persönlich, daher in workspace.xml). */
+/** Hält Gruppen und Einträge der Runners Bar eines Projekts: persönliche in workspace.xml, geteilte in [RunnersBarSharedService]. */
 @Service(Service.Level.PROJECT)
 @State(name = "RunnersBar", storages = [Storage(StoragePathMacros.WORKSPACE_FILE)])
 class RunnersBarService(private val project: Project) : PersistentStateComponent<RunnersBarState>, Disposable {
@@ -166,21 +166,55 @@ class RunnersBarService(private val project: Project) : PersistentStateComponent
 
     // ---- Gruppen ----
 
+    private val shared get() = RunnersBarSharedService.getInstance(project).state
+
+    /** Persönliche Gruppen zuerst, dann die geteilten. */
+    private val groups: List<RunnersBarGroup> get() = state.groups + shared.groups
+
     private fun activeGroup(): RunnersBarGroup {
-        if (state.groups.isEmpty()) state.groups.add(RunnersBarGroup())
-        return state.groups.firstOrNull { it.name == state.activeGroup }
-            ?: state.groups.first().also { state.activeGroup = it.name }
+        if (groups.isEmpty()) state.groups.add(RunnersBarGroup())
+        return groups.firstOrNull { it.name == state.activeGroup }
+            ?: groups.first().also { state.activeGroup = it.name }
     }
 
     val groupNames: List<String>
         get() {
             activeGroup()
-            return state.groups.map { it.name }
+            return groups.map { it.name }
         }
 
     val activeGroupName: String get() = activeGroup().name
 
-    fun hasGroup(name: String): Boolean = state.groups.any { it.name == name }
+    fun hasGroup(name: String): Boolean = groups.any { it.name == name }
+
+    fun isShared(name: String): Boolean = shared.groups.any { it.name == name }
+
+    /**
+     * Verschiebt eine Gruppe in die geteilte Datei (.idea/runnersBar.xml) oder zurück in den Workspace. Beim Teilen werden
+     * ihre Konfigurationen als Projektdateien gespeichert, sonst fehlen sie den anderen.
+     */
+    fun setShared(name: String, share: Boolean) {
+        if (isShared(name) == share) return
+        val from = if (share) state.groups else shared.groups
+        val group = from.firstOrNull { it.name == name } ?: return
+        from.remove(group)
+        (if (share) shared.groups else state.groups).add(group)
+        if (share) group.entries.forEach { entry -> findSettings(entry)?.let(::storeForTeam) }
+        fireChanged()
+    }
+
+    /** Konfigurationen, die nur im persönlichen Workspace liegen, die geteilte Gruppen aber referenzieren. */
+    fun unsharedConfigurations(name: String): List<RunnerAndConfigurationSettings> =
+        groups.firstOrNull { it.name == name }?.entries.orEmpty()
+            .mapNotNull { findSettings(it) }
+            .filter { it.isStoredInLocalWorkspace }
+
+    /** Wie „Store as project file“ im Run-Dialog: erst nach erneutem addConfiguration schreibt die IDE die Datei. */
+    private fun storeForTeam(settings: RunnerAndConfigurationSettings) {
+        if (!settings.isStoredInLocalWorkspace) return
+        settings.storeInDotIdeaFolder()
+        RunManager.getInstance(project).addConfiguration(settings)
+    }
 
     fun selectGroup(name: String) {
         if (name == activeGroupName || !hasGroup(name)) return
@@ -199,18 +233,19 @@ class RunnersBarService(private val project: Project) : PersistentStateComponent
 
     fun renameGroup(oldName: String, newName: String) {
         if (newName.isBlank() || hasGroup(newName)) return
-        val group = state.groups.firstOrNull { it.name == oldName } ?: return
+        val group = groups.firstOrNull { it.name == oldName } ?: return
         group.name = newName
         if (state.activeGroup == oldName) state.activeGroup = newName
         fireChanged()
     }
 
     fun removeGroup(name: String) {
-        if (state.groups.size <= 1) return
-        val index = state.groups.indexOfFirst { it.name == name }
+        val all = groups
+        if (all.size <= 1) return
+        val index = all.indexOfFirst { it.name == name }
         if (index < 0) return
-        state.groups.removeAt(index)
-        if (state.activeGroup == name) state.activeGroup = state.groups[(index - 1).coerceAtLeast(0)].name
+        if (!state.groups.remove(all[index])) shared.groups.remove(all[index])
+        if (state.activeGroup == name) state.activeGroup = groups[(index - 1).coerceAtLeast(0)].name
         fireChanged()
     }
 
@@ -228,6 +263,7 @@ class RunnersBarService(private val project: Project) : PersistentStateComponent
     fun add(settings: RunnerAndConfigurationSettings) {
         if (settings.isTemporary) RunManager.getInstance(project).makeStable(settings)
         if (contains(settings)) return
+        if (isShared(activeGroupName)) storeForTeam(settings)
         activeGroup().entries.add(RunnersBarEntry().apply {
             configId = settings.uniqueID
             name = settings.name
@@ -265,7 +301,7 @@ class RunnersBarService(private val project: Project) : PersistentStateComponent
     fun delete(settings: RunnerAndConfigurationSettings) {
         val id = settings.uniqueID
         RunManager.getInstance(project).removeConfiguration(settings)
-        state.groups.forEach { group -> group.entries.removeIf { it.configId == id } }
+        groups.forEach { group -> group.entries.removeIf { it.configId == id } }
         fireChanged()
     }
 
@@ -305,7 +341,7 @@ class RunnersBarService(private val project: Project) : PersistentStateComponent
     /** Wird bei Umbenennungen aufgerufen, damit Einträge in allen Gruppen an der Konfiguration hängen bleiben. */
     fun configurationChanged(settings: RunnerAndConfigurationSettings, oldId: String?) {
         var changed = false
-        for (group in state.groups) {
+        for (group in groups) {
             for (entry in group.entries) {
                 if (entry.configId == settings.uniqueID || (oldId != null && entry.configId == oldId)) {
                     if (entry.configId != settings.uniqueID || entry.name != settings.name) {
@@ -319,7 +355,7 @@ class RunnersBarService(private val project: Project) : PersistentStateComponent
         if (changed) fireChanged()
     }
 
-    private fun fireChanged() {
+    internal fun fireChanged() {
         if (!project.isDisposed) project.messageBus.syncPublisher(RunnersBarListener.TOPIC).entriesChanged()
     }
 
@@ -335,5 +371,24 @@ class RunnersBarService(private val project: Project) : PersistentStateComponent
         private const val MAX_UNSAVED_RUNS = 10
 
         fun getInstance(project: Project): RunnersBarService = project.getService(RunnersBarService::class.java)
+    }
+}
+
+/** Geteilte Gruppen; ändert sich die Datei von außen (z. B. git pull), wird die Leiste neu aufgebaut. */
+@Service(Service.Level.PROJECT)
+@State(name = "RunnersBarShared", storages = [Storage("runnersBar.xml")])
+class RunnersBarSharedService(private val project: Project) : PersistentStateComponent<RunnersBarSharedState> {
+
+    private var state = RunnersBarSharedState()
+
+    override fun getState(): RunnersBarSharedState = state
+
+    override fun loadState(loaded: RunnersBarSharedState) {
+        state = loaded
+        if (!project.isDisposed) project.messageBus.syncPublisher(RunnersBarListener.TOPIC).entriesChanged()
+    }
+
+    companion object {
+        fun getInstance(project: Project): RunnersBarSharedService = project.getService(RunnersBarSharedService::class.java)
     }
 }

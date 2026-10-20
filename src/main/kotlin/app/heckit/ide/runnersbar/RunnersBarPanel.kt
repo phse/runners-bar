@@ -244,6 +244,7 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
         fun <T> own(value: T, default: T): T? = value.takeUnless { it == default }
         return submenu(RunnersBarBundle.message("bar.options"), AllIcons.General.Settings).apply {
             add(popupAction(RunnersBarBundle.message("group.new"), AllIcons.Actions.NewFolder) { newGroup() })
+            add(shareAction(service.activeGroupName))
             add(popupAction(RunnersBarBundle.message("bar.hide"), AllIcons.Actions.Close) { hideInProject() })
             add(Separator.create(RunnersBarBundle.message("settings.position")))
             listOf(BarPosition.TOP, BarPosition.BOTTOM).forEach { value ->
@@ -278,12 +279,19 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
     internal fun showGroupPopup(anchor: JComponent): JBPopup {
         val active = service.activeGroupName
         val group = DefaultActionGroup()
-        service.groupNames.forEach { name ->
+        val (shared, personal) = service.groupNames.partition { service.isShared(it) }
+        personal.forEach { name ->
+            val icon = if (name == active) AllIcons.Actions.Checked else EmptyIcon.ICON_16
+            group.add(popupAction(groupDisplayName(name), icon) { service.selectGroup(name) })
+        }
+        if (shared.isNotEmpty()) group.add(Separator.create(RunnersBarBundle.message("group.shared.section")))
+        shared.forEach { name ->
             val icon = if (name == active) AllIcons.Actions.Checked else EmptyIcon.ICON_16
             group.add(popupAction(groupDisplayName(name), icon) { service.selectGroup(name) })
         }
         group.add(Separator.getInstance())
         group.add(popupAction(RunnersBarBundle.message("group.new"), AllIcons.Actions.NewFolder) { newGroup() })
+        group.add(shareAction(active))
         group.add(popupAction(RunnersBarBundle.message("group.rename", groupDisplayName(active)), AllIcons.Actions.Edit) {
             renameGroup(active)
         })
@@ -314,10 +322,35 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
         service.renameGroup(name, newName)
     }
 
+    private fun shareAction(name: String): AnAction {
+        val shared = service.isShared(name)
+        return popupAction(
+            RunnersBarBundle.message(if (shared) "group.unshare" else "group.share", groupDisplayName(name)),
+            if (shared) AllIcons.Actions.Undo else AllIcons.Actions.Upload,
+        ) { toggleShared(name) }
+    }
+
+    /** Teilen bzw. zurückholen nach Rückfrage; beim Teilen wird gesagt, welche Konfigurationen zu Projektdateien werden. */
+    private fun toggleShared(name: String) {
+        val share = !service.isShared(name)
+        val message = if (share) {
+            val unshared = service.unsharedConfigurations(name)
+            RunnersBarBundle.message("group.share.confirm", groupDisplayName(name)) +
+                if (unshared.isEmpty()) "" else "\n\n" + RunnersBarBundle.message("group.share.configs", unshared.joinToString(", ") { it.name })
+        } else {
+            RunnersBarBundle.message("group.unshare.confirm", groupDisplayName(name))
+        }
+        val title = RunnersBarBundle.message(if (share) "group.share.title" else "group.unshare.title")
+        if (Messages.showYesNoDialog(project, message, title, Messages.getQuestionIcon()) == Messages.YES) {
+            service.setShared(name, share)
+        }
+    }
+
     private fun removeGroup(name: String) {
+        val confirm = if (service.isShared(name)) "group.remove.confirmShared" else "group.remove.confirm"
         val answer = Messages.showYesNoDialog(
             project,
-            RunnersBarBundle.message("group.remove.confirm", groupDisplayName(name)),
+            RunnersBarBundle.message(confirm, groupDisplayName(name)),
             RunnersBarBundle.message("group.remove.title"),
             Messages.getQuestionIcon(),
         )
