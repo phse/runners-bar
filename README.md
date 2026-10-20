@@ -26,6 +26,13 @@ with your favourite run configurations above the status bar or below the toolbar
   the controls (left/right).
 - **Groups**: as soon as there is more than one, a switcher appears next to the +. Use it to
   switch, rename and delete groups. A configuration can be part of several groups.
+- **Team groups**: *Share with the Team…* (group switcher or the + menu's **Runners Bar** submenu,
+  or a checkbox in the settings) moves a group to `.idea/runnersBar.xml`. Commit that file and
+  everyone gets the same tabs, e.g. *Start dev*, *Tests*, *Deploy staging*. Run configurations of a
+  shared group that live only in your workspace are stored as project files
+  (`.idea/runConfigurations`) so they exist for everyone; the confirmation names them. Shared groups
+  appear in their own section of the group switcher and are reloaded when the file changes (e.g.
+  after `git pull`). *Stop Sharing…* moves a group back to your workspace.
 - **Drag and drop**: drag tabs to reorder them, just like editor tabs: the tab follows the mouse
   and the other tabs make room. Dragged outside the bar, the tab turns red with a trash icon;
   dropping it there removes it from the group. Press **Escape** while dragging to cancel.
@@ -47,17 +54,21 @@ with your favourite run configurations above the status bar or below the toolbar
 - Show or hide it in the current project only: **Hide in This Project** in the + menu's
   **Runners Bar** submenu, or **View | Appearance | Runners Bar in This Project**. The project
   setting wins over the default, so a project can also show the bar while it is off by default.
-- **Settings | Appearance & Behavior | Runners Bar**: show or hide the bar, position *top* (below
-  the toolbar) or *bottom* (above the status bar), tabs *left*, *center* or *right*, controls
-  (+, group switcher) *left* or *right*, menu arrow on the tabs shown or hidden (the menu is
-  always available with a right click). These are the **defaults for all projects**. Below them,
-  each project can override every value or keep *Default*. The + menu's **Runners Bar** submenu
-  changes the current project only; choosing the default value there makes the project follow
-  the default again. New tabs are always appended on the right.
+- **Settings | Appearance & Behavior | Runners Bar**: a table with one row per setting: show or
+  hide the bar, position *top* (below the toolbar) or *bottom* (above the status bar), tabs *left*,
+  *center* or *right*, controls (+, group switcher) *left* or *right*, menu arrow on the tabs shown
+  or hidden (the menu is always available with a right click). The first column holds the
+  **defaults for all projects**, the second one the current project's value or *Same as all
+  projects*. Below the table, every group of the project has a *Share with the team* checkbox.
+  The **Runners Bar** submenu of the + menu changes the current project only; choosing the default
+  value there makes the project follow the default again. New tabs are always appended on the right.
 
 Tabs, groups and the per-project visibility are stored per project in `.idea/workspace.xml`, so
 they are personal and don't end up in version control, together with the project's own layout
-values. The defaults are IDE settings (`options/runnersBar.xml`). The UI is available in English and German.
+values. Shared groups are the exception: they live in `.idea/runnersBar.xml`. The defaults are IDE
+settings (`options/runnersBar.xml`). The UI is available in English and German.
+
+![Settings](marketplace/screenshots/06-settings.png)
 
 ## Installation
 
@@ -132,9 +143,9 @@ see https://plugins.jetbrains.com/docs/intellij/plugin-signing.html).
 ```
 
 Copies `marketplace/demo-project` to `/Users/Shared/demo-shop` (so no user path shows up in the
-images), opens it in the sandbox, starts `dev` and writes five PNGs to `marketplace/screenshots/`
-(bar, tab menu, groups, add, bar at the top). The IDE paints its own window for this, no screen recording
-permission is needed. The helper lives in `src/screenshot/` and is only compiled with
+images), opens it in the sandbox, starts `dev` and writes six PNGs to `marketplace/screenshots/`
+(bar, tab menu, groups, add, bar at the top, settings page). The IDE paints its own window for
+this, no screen recording permission is needed. The helper lives in `src/screenshot/` and is only compiled with
 `-Pscreenshots`, never into a release.
 
 Requirements: Node at `/usr/local/bin/node` (hard-coded in the demo run configurations) and
@@ -152,8 +163,8 @@ the plugin is unloaded, the original state is restored.
 | File | Contents |
 | --- | --- |
 | `RunnersBarInstaller.kt` | Startup activity, attaching above the status bar, visibility |
-| `RunnersBarService.kt` | Project service, persistence, entries |
-| `RunnersBarState.kt` | Persisted state (groups, entries, hidden per project) |
+| `RunnersBarService.kt` | Project service, persistence, entries; `RunnersBarSharedService` for shared groups (`.idea/runnersBar.xml`) |
+| `RunnersBarState.kt` | Persisted state (personal and shared groups, entries, per-project values) |
 | `RunnersBarPanel.kt` | The bar, the "+" popup with its submenus, and drag and drop |
 | `RunnersBarTab.kt` | Tab with click-to-run and menu |
 | `RunnersBarExecution.kt` | Starting (run/debug) and detecting running processes |

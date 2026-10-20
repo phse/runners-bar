@@ -9,7 +9,6 @@ import com.intellij.openapi.options.BoundConfigurable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogPanel
 import com.intellij.ui.dsl.builder.Panel
-import com.intellij.ui.dsl.builder.bind
 import com.intellij.ui.dsl.builder.bindItem
 import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.bindText
@@ -109,37 +108,46 @@ class RunnersBarSettings : PersistentStateComponent<RunnersBarSettingsState> {
 }
 
 /**
- * Settings | Appearance & Behavior | Runners Bar: oben die Vorgaben für alle Projekte, darunter die Abweichungen
- * des aktuellen Projekts. Im Default-Projekt (Einstellungen ohne offenes Projekt) nur die Vorgaben.
+ * Settings | Appearance & Behavior | Runners Bar: eine Tabelle mit den Vorgaben für alle Projekte und daneben den
+ * Abweichungen des aktuellen Projekts, darunter die Gruppen des Projekts (Teilen) und Run Anything.
+ * Im Default-Projekt (Einstellungen ohne offenes Projekt) nur die Vorgaben.
  */
 class RunnersBarConfigurable(private val project: Project) : BoundConfigurable(RunnersBarBundle.message("settings.displayName")) {
     override fun createPanel(): DialogPanel {
         val settings = RunnersBarSettings.getInstance()
+        val service = if (project.isDefault) null else RunnersBarService.getInstance(project)
+        val shownHidden = listOf(true, false)
+        fun shown(value: Boolean) = RunnersBarBundle.message(if (value) "settings.shown" else "settings.hidden")
+        fun alignment(value: Enum<*>) = RunnersBarBundle.message("settings.${value.name.lowercase()}")
         return panel {
-            group(RunnersBarBundle.message("settings.defaults")) {
-                row {
-                    checkBox(RunnersBarBundle.message("settings.visible"))
-                        .bindSelected({ RunnersBarInstaller.isBarVisible }, { RunnersBarInstaller.setBarVisibleEverywhere(it) })
+            group(RunnersBarBundle.message("settings.appearance")) {
+                row(" ") {
+                    label(RunnersBarBundle.message("settings.allProjects")).bold().widthGroup(DEFAULTS_COLUMN)
+                    if (service != null) label(RunnersBarBundle.message("settings.project", project.name)).bold().widthGroup(PROJECT_COLUMN)
                 }
-                buttonsGroup(RunnersBarBundle.message("settings.position")) {
-                    row { radioButton(RunnersBarBundle.message("settings.position.bottom"), BarPosition.BOTTOM) }
-                    row { radioButton(RunnersBarBundle.message("settings.position.top"), BarPosition.TOP) }
-                }.bind(settings::position)
-                buttonsGroup(RunnersBarBundle.message("settings.tabs")) {
-                    row { radioButton(RunnersBarBundle.message("settings.left"), TabsAlignment.LEFT) }
-                    row { radioButton(RunnersBarBundle.message("settings.center"), TabsAlignment.CENTER) }
-                    row { radioButton(RunnersBarBundle.message("settings.right"), TabsAlignment.RIGHT) }
-                }.bind(settings::tabsAlignment)
-                buttonsGroup(RunnersBarBundle.message("settings.controls")) {
-                    row { radioButton(RunnersBarBundle.message("settings.left"), ControlsAlignment.LEFT) }
-                    row { radioButton(RunnersBarBundle.message("settings.right"), ControlsAlignment.RIGHT) }
-                }.bind(settings::controlsAlignment)
-                row {
-                    checkBox(RunnersBarBundle.message("settings.menuArrow"))
-                        .bindSelected(settings::showMenuArrow)
-                        .comment(RunnersBarBundle.message("settings.menuArrow.comment"))
-                }
+                settingRow(
+                    RunnersBarBundle.message("settings.project.visible"), shownHidden, ::shown,
+                    { RunnersBarInstaller.isBarVisible }, { RunnersBarInstaller.setBarVisibleEverywhere(it) }, service?.let { it::visible },
+                )
+                settingRow(
+                    RunnersBarBundle.message("settings.position"), listOf(BarPosition.BOTTOM, BarPosition.TOP),
+                    { RunnersBarBundle.message("settings.position.${it.name.lowercase()}") },
+                    settings::position.getter, settings::position.setter, service?.let { it::position },
+                )
+                settingRow(
+                    RunnersBarBundle.message("settings.tabs"), TabsAlignment.entries, ::alignment,
+                    settings::tabsAlignment.getter, settings::tabsAlignment.setter, service?.let { it::tabsAlignment },
+                )
+                settingRow(
+                    RunnersBarBundle.message("settings.controls"), ControlsAlignment.entries, ::alignment,
+                    settings::controlsAlignment.getter, settings::controlsAlignment.setter, service?.let { it::controlsAlignment },
+                )
+                settingRow(
+                    RunnersBarBundle.message("settings.menuArrow"), shownHidden, ::shown,
+                    settings::showMenuArrow.getter, settings::showMenuArrow.setter, service?.let { it::showMenuArrow },
+                ).rowComment(RunnersBarBundle.message("settings.menuArrow.comment"))
             }
+            if (service != null) groupsGroup(service)
             group(RunnersBarBundle.message("settings.runAnything")) {
                 row(RunnersBarBundle.message("settings.runAnything.prefix")) {
                     textField()
@@ -148,38 +156,51 @@ class RunnersBarConfigurable(private val project: Project) : BoundConfigurable(R
                         .comment(RunnersBarBundle.message("settings.runAnything.comment"))
                 }
             }
-            if (!project.isDefault) projectGroup(RunnersBarService.getInstance(project))
         }
     }
 
-    /** Je Einstellung eine Auswahl „Vorgabe“ oder ein fester Wert nur für dieses Projekt. */
-    private fun Panel.projectGroup(service: RunnersBarService) {
-        group(RunnersBarBundle.message("settings.project", project.name)) {
-            overrideRow(RunnersBarBundle.message("settings.project.visible"), service::visible, listOf(true, false)) {
-                RunnersBarBundle.message(if (it) "settings.shown" else "settings.hidden")
+    /** Je Gruppe ein Häkchen „Mit dem Team teilen“. */
+    private fun Panel.groupsGroup(service: RunnersBarService) {
+        group(RunnersBarBundle.message("settings.groups", project.name)) {
+            service.groupNames.forEach { name ->
+                val display = if (name == RunnersBarGroup.DEFAULT_GROUP) RunnersBarBundle.message("group.default") else name
+                row("$display:") {
+                    checkBox(RunnersBarBundle.message("settings.groups.share"))
+                        .bindSelected({ service.isShared(name) }, { service.setShared(name, it) })
+                }
             }
-            overrideRow(RunnersBarBundle.message("settings.position"), service::position, listOf(BarPosition.BOTTOM, BarPosition.TOP)) {
-                RunnersBarBundle.message("settings.position.${it.name.lowercase()}")
-            }
-            overrideRow(RunnersBarBundle.message("settings.tabs"), service::tabsAlignment, TabsAlignment.entries) {
-                RunnersBarBundle.message("settings.${it.name.lowercase()}")
-            }
-            overrideRow(RunnersBarBundle.message("settings.controls"), service::controlsAlignment, ControlsAlignment.entries) {
-                RunnersBarBundle.message("settings.${it.name.lowercase()}")
-            }
-            overrideRow(RunnersBarBundle.message("settings.menuArrow"), service::showMenuArrow, listOf(true, false)) {
-                RunnersBarBundle.message(if (it) "settings.shown" else "settings.hidden")
-            }
+            row { comment(RunnersBarBundle.message("settings.groups.comment")) }
         }
     }
 
-    /** Auswahlliste mit „Vorgabe“ (null) und den möglichen Werten. */
-    private fun <T : Any> Panel.overrideRow(label: String, property: KMutableProperty0<T?>, values: List<T>, text: (T) -> String) {
-        val choices = listOf(Choice<T>(null, RunnersBarBundle.message("settings.useDefault"))) + values.map { Choice(it, text(it)) }
-        row("$label:") {
+    /**
+     * Eine Zeile der Tabelle: Vorgabe für alle Projekte und, falls ein Projekt offen ist, sein eigener Wert
+     * („Wie alle Projekte“ = null).
+     */
+    private fun <T : Any> Panel.settingRow(
+        label: String,
+        values: List<T>,
+        text: (T) -> String,
+        getDefault: () -> T,
+        setDefault: (T) -> Unit,
+        projectValue: KMutableProperty0<T?>?,
+    ) = row("$label:") {
+        val defaults = values.map { Choice(it, text(it)) }
+        comboBox(defaults, textListCellRenderer { it?.text })
+            .bindItem({ defaults.first { it.value == getDefault() } }, { it?.value?.let(setDefault) })
+            .widthGroup(DEFAULTS_COLUMN)
+        if (projectValue != null) {
+            val choices = listOf(Choice<T>(null, RunnersBarBundle.message("settings.useDefault"))) + defaults
             comboBox(choices, textListCellRenderer { it?.text })
-                .bindItem({ choices.first { it.value == property.get() } }, { property.set(it?.value) })
+                .bindItem({ choices.first { it.value == projectValue.get() } }, { projectValue.set(it?.value) })
+                .widthGroup(PROJECT_COLUMN)
         }
+    }
+
+    private companion object {
+        // Gleiche Breite je Spalte, damit die Tabelle bündig ist.
+        const val DEFAULTS_COLUMN = "RunnersBar.defaults"
+        const val PROJECT_COLUMN = "RunnersBar.project"
     }
 
     /** Eintrag der Auswahlliste; ohne null-Einträge, deren Darstellung die Plattform sonst selbst übernimmt. */
