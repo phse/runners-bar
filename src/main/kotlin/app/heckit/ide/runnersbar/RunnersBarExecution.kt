@@ -8,6 +8,7 @@ import com.intellij.execution.executors.DefaultDebugExecutor
 import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.runners.ExecutionEnvironment
+import com.intellij.execution.runners.ExecutionUtil
 import com.intellij.execution.runners.ProgramRunner
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
@@ -29,13 +30,14 @@ object RunnersBarExecution {
 
 /** Merkt sich, welche Konfigurationen gerade laufen. Alle Zugriffe auf dem EDT. */
 class RunningTracker(project: Project, parent: Disposable, private val onChange: () -> Unit) {
-    private val running = mutableMapOf<String, MutableSet<ProcessHandler>>()
+    /** Laufende Prozesse je Konfiguration, mit ihrer Umgebung für „Neu starten“. */
+    private val running = mutableMapOf<String, MutableMap<ProcessHandler, ExecutionEnvironment>>()
 
     init {
         project.messageBus.connect(parent).subscribe(ExecutionManager.EXECUTION_TOPIC, object : ExecutionListener {
             override fun processStarted(executorId: String, env: ExecutionEnvironment, handler: ProcessHandler) {
                 val id = env.runnerAndConfigurationSettings?.uniqueID ?: return
-                onEdt { running.getOrPut(id) { mutableSetOf() }.add(handler) }
+                onEdt { running.getOrPut(id) { mutableMapOf() }[handler] = env }
             }
 
             override fun processTerminated(
@@ -63,9 +65,14 @@ class RunningTracker(project: Project, parent: Disposable, private val onChange:
     }
 
     fun isRunning(configId: String): Boolean =
-        running[configId]?.any { !it.isProcessTerminated && !it.isProcessTerminating } == true
+        running[configId]?.keys?.any { !it.isProcessTerminated && !it.isProcessTerminating } == true
 
     fun stop(configId: String) {
-        running[configId]?.toList()?.forEach { it.destroyProcess() }
+        running[configId]?.keys?.toList()?.forEach { it.destroyProcess() }
+    }
+
+    /** Wie „Rerun“ im Run-Fenster: beendet den laufenden Prozess und startet in derselben Umgebung (Run bzw. Debug) neu. */
+    fun restart(configId: String) {
+        running[configId]?.entries?.lastOrNull { !it.key.isProcessTerminated }?.value?.let(ExecutionUtil::restart)
     }
 }

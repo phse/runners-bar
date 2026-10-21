@@ -3,6 +3,7 @@ package app.heckit.ide.runnersbar
 import com.intellij.execution.ExecutionListener
 import com.intellij.execution.ExecutionManager
 import com.intellij.execution.RunManager
+import com.intellij.openapi.util.text.NaturalComparator
 import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.execution.impl.RunDialog
 import com.intellij.openapi.Disposable
@@ -247,6 +248,25 @@ class RunnersBarService(private val project: Project) : PersistentStateComponent
         if (!state.groups.remove(all[index])) shared.groups.remove(all[index])
         if (state.activeGroup == name) state.activeGroup = groups[(index - 1).coerceAtLeast(0)].name
         fireChanged()
+    }
+
+    /** Sortiert die Tabs der aktiven Gruppe alphabetisch nach angezeigtem Namen (Zahlen natürlich: „Task 2“ vor „Task 10“). */
+    fun sortActiveGroup() {
+        val list = activeGroup().entries
+        val sorted = list.sortedWith(compareBy(NaturalComparator.INSTANCE) { findSettings(it)?.name ?: it.name })
+        if (sorted == list) return
+        list.clear()
+        list.addAll(sorted)
+        fireChanged()
+    }
+
+    /** Tabs der aktiven Gruppe, deren Run Configuration es nicht mehr gibt. */
+    fun orphanedEntries(): List<RunnersBarEntry> = activeGroup().entries.filter { findSettings(it) == null }
+
+    /** Entfernt die Tabs ohne Run Configuration aus der aktiven Gruppe. */
+    fun removeOrphaned() {
+        val ids = RunManager.getInstance(project).allSettings.mapTo(HashSet()) { it.uniqueID }
+        if (activeGroup().entries.removeIf { it.configId !in ids }) fireChanged()
     }
 
     /** Nimmt [settings] in die Gruppe [name] auf (legt sie bei Bedarf als persönliche an), ohne umzuschalten. */
