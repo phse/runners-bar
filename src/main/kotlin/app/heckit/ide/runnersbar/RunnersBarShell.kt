@@ -2,6 +2,7 @@ package app.heckit.ide.runnersbar
 
 import com.intellij.execution.RunManager
 import com.intellij.execution.RunnerAndConfigurationSettings
+import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.ConfigurationType
 import com.intellij.openapi.components.PathMacroManager
 import com.intellij.openapi.project.Project
@@ -27,6 +28,32 @@ object RunnersBarShell {
         }
         runManager.addConfiguration(settings)
         return settings
+    }
+
+    /**
+     * Legt für einen VS-Code-Task eine Konfiguration an oder aktualisiert [existing]. Läuft im Terminal wie in VS Code:
+     * Tunnel, ddev und Rückfragen brauchen ein echtes Terminal.
+     */
+    fun createOrUpdate(project: Project, task: VsCodeTasks.Task, name: String, existing: RunnerAndConfigurationSettings?): RunnerAndConfigurationSettings {
+        val runManager = RunManager.getInstance(project)
+        val type = ShConfigurationType.getInstance()
+        val settings = existing ?: runManager.createConfiguration(runManager.suggestUniqueName(name, type), type)
+        (settings.configuration as? ShRunConfiguration)?.apply {
+            isExecuteScriptFile = false
+            if (existing == null) isExecuteInTerminal = true
+            scriptText = task.command
+            scriptWorkingDirectory = task.workingDirectory
+            envData = EnvironmentVariablesData.create(task.env, true)
+        }
+        runManager.addConfiguration(settings)
+        return settings
+    }
+
+    /** Weicht die Konfiguration von [task] ab (Befehl, Arbeitsverzeichnis, Umgebung)? */
+    fun differs(settings: RunnerAndConfigurationSettings, task: VsCodeTasks.Task): Boolean {
+        val configuration = settings.configuration as? ShRunConfiguration ?: return false
+        return configuration.scriptText != task.command || configuration.scriptWorkingDirectory != task.workingDirectory ||
+            configuration.envData.envs != task.env
     }
 
     /** „Execute in the Terminal“ einer Shell-Script-Konfiguration; null bei anderen Typen oder ohne Shell-Script-Plugin. */

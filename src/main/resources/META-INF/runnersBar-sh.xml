@@ -1,5 +1,9 @@
 <idea-plugin>
     <extensions defaultExtensionNs="com.intellij">
         <runAnything.executionProvider implementation="app.heckit.ide.runnersbar.RunnersBarRunAnythingProvider"/>
+        <postStartupActivity implementation="app.heckit.ide.runnersbar.VsCodeTasksStartup"/>
     </extensions>
+    <actions>
+        <action id="RunnersBar.ImportVsCodeTasks" class="app.heckit.ide.runnersbar.ImportVsCodeTasksAction" icon="AllIcons.ToolbarDecorator.Import"/>
+    </actions>
 </idea-plugin>

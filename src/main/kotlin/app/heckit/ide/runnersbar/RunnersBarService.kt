@@ -174,7 +174,7 @@ class RunnersBarService(private val project: Project) : PersistentStateComponent
     private fun activeGroup(): RunnersBarGroup {
         if (groups.isEmpty()) state.groups.add(RunnersBarGroup())
         return groups.firstOrNull { it.name == state.activeGroup }
-            ?: groups.first().also { state.activeGroup = it.name }
+            ?: groups.first()
     }
 
     val groupNames: List<String>
@@ -247,6 +247,82 @@ class RunnersBarService(private val project: Project) : PersistentStateComponent
         if (!state.groups.remove(all[index])) shared.groups.remove(all[index])
         if (state.activeGroup == name) state.activeGroup = groups[(index - 1).coerceAtLeast(0)].name
         fireChanged()
+    }
+
+    /** Nimmt [settings] in die Gruppe [name] auf (legt sie bei Bedarf als persönliche an), ohne umzuschalten. */
+    fun addToGroup(name: String, settings: RunnerAndConfigurationSettings) {
+        activeGroup()
+        val group = groups.firstOrNull { it.name == name } ?: RunnersBarGroup().also {
+            it.name = name
+            state.groups.add(it)
+        }
+        if (group.entries.none { it.configId == settings.uniqueID }) {
+            group.entries.add(RunnersBarEntry().apply {
+                configId = settings.uniqueID
+                this.name = settings.name
+            })
+        }
+        fireChanged()
+    }
+
+    /** Liegt die Konfiguration von [entry] schon in der Gruppe [name]? */
+    fun groupContains(name: String, entry: RunnersBarEntry): Boolean =
+        groups.firstOrNull { it.name == name }?.entries?.any { it.configId == entry.configId } == true
+
+    /** Legt eine persönliche Gruppe an, ohne auf sie umzuschalten. */
+    fun createGroup(name: String) {
+        if (name.isBlank() || hasGroup(name)) return
+        activeGroup()
+        state.groups.add(RunnersBarGroup().also { it.name = name })
+        fireChanged()
+    }
+
+    /** Verschiebt [entry] aus der aktiven Gruppe ans Ende von [target] oder kopiert ihn dorthin ([copy]). */
+    fun moveToGroup(entry: RunnersBarEntry, target: String, copy: Boolean): Boolean {
+        val to = groups.firstOrNull { it.name == target } ?: return false
+        if (to === activeGroup() || groupContains(target, entry)) return false
+        to.entries.add(RunnersBarEntry().apply {
+            configId = entry.configId
+            name = entry.name
+            debug = entry.debug
+        })
+        if (isShared(target)) findSettings(entry)?.let(::storeForTeam)
+        if (!copy) activeGroup().entries.remove(entry)
+        fireChanged()
+        return true
+    }
+
+    /** Macht [moveToGroup] rückgängig: aus [target] entfernen und beim Verschieben an [index] in [source] zurücklegen. */
+    fun undoMoveToGroup(entry: RunnersBarEntry, source: String, index: Int, target: String, copy: Boolean) {
+        groups.firstOrNull { it.name == target }?.entries?.removeIf { it.configId == entry.configId }
+        if (!copy) {
+            groups.firstOrNull { it.name == source }?.entries
+                ?.takeIf { list -> list.none { it.configId == entry.configId } }
+                ?.let { it.add(index.coerceIn(0, it.size), entry) }
+        }
+        fireChanged()
+    }
+
+    // ---- VS Code Tasks ----
+
+    /** Konfiguration eines übernommenen Tasks; null, wenn er nie übernommen oder die Konfiguration gelöscht wurde. */
+    fun importedSettings(key: String): RunnerAndConfigurationSettings? =
+        state.vsCodeTasks.firstOrNull { it.key == key }
+            ?.let { imported -> RunManager.getInstance(project).allSettings.firstOrNull { it.uniqueID == imported.configId } }
+
+    fun markImported(key: String, settings: RunnerAndConfigurationSettings) {
+        state.vsCodeTasks.removeIf { it.key == key }
+        state.vsCodeTasks.add(RunnersBarImportedTask().also {
+            it.key = key
+            it.configId = settings.uniqueID
+        })
+    }
+
+    /** Tasks, über die noch nicht entschieden wurde (importiert oder bewusst weggelassen). */
+    fun notOffered(keys: List<String>): List<String> = keys.filter { it !in state.offeredVsCodeTasks }
+
+    fun markOffered(keys: List<String>) {
+        state.offeredVsCodeTasks.addAll(notOffered(keys))
     }
 
     // ---- Einträge der aktiven Gruppe ----

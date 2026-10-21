@@ -55,6 +55,20 @@ intellijPlatform {
             untilBuild = provider { null }
         }
         changeNotes = """
+            <h3>2.0.0</h3>
+            <ul>
+              <li><i>Add to Runners Bar...</i> in the context menu and in the menu of the gutter run icon: right-click a script in
+                  <code>package.json</code>, a test or a main method, name it, done.</li>
+              <li>VS Code tasks: import the tasks from <code>.vscode/tasks.json</code> (also from subfolders) as run configurations,
+                  one group per folder. Pick the tasks you want and import the rest later. Supports shell, process, npm, gulp,
+                  grunt, jake, docker-build and docker-compose tasks. A notification offers the import when a project opens;
+                  it can be switched off in the settings.</li>
+              <li>Move or copy tabs to another group: from the tab menu, or drag a tab out of the bar and drop it on a group.
+                  Hold Option (macOS) or Ctrl to copy. The confirmation offers <i>Undo</i>.</li>
+              <li><i>New Group…</i> is now directly in the + menu.</li>
+              <li>The last active group is remembered reliably, also when it is a shared group.</li>
+              <li>The bar keeps the same height with and without tabs.</li>
+            </ul>
             <h3>1.4.0</h3>
             <ul>
               <li>Team groups: share a group with your team. It is stored in <code>.idea/runnersBar.xml</code>; commit the file

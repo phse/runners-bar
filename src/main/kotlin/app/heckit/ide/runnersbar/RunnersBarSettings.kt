@@ -35,6 +35,9 @@ class RunnersBarSettingsState {
     /** Präfix in Run Anything, das aus einem Befehl einen Tab macht (z. B. „bar npm run dev“). */
     var runAnythingPrefix: String = DEFAULT_RUN_ANYTHING_PREFIX
 
+    /** Beim Öffnen eines Projekts melden, wenn .vscode/tasks.json neue Tasks enthält. */
+    var offerVsCodeTasks: Boolean = true
+
     companion object {
         const val DEFAULT_RUN_ANYTHING_PREFIX = "bar"
     }
@@ -101,6 +104,12 @@ class RunnersBarSettings : PersistentStateComponent<RunnersBarSettingsState> {
             state.runAnythingPrefix = value.trim()
         }
 
+    var offerVsCodeTasks: Boolean
+        get() = state.offerVsCodeTasks
+        set(value) {
+            state.offerVsCodeTasks = value
+        }
+
     companion object {
         fun getInstance(): RunnersBarSettings =
             ApplicationManager.getApplication().getService(RunnersBarSettings::class.java)
@@ -148,6 +157,15 @@ class RunnersBarConfigurable(private val project: Project) : BoundConfigurable(R
                 ).rowComment(RunnersBarBundle.message("settings.menuArrow.comment"))
             }
             if (service != null) groupsGroup(service)
+            if (RunnersBarShell.isAvailable) {
+                group(RunnersBarBundle.message("settings.vscode")) {
+                    row {
+                        checkBox(RunnersBarBundle.message("settings.vscode.offer"))
+                            .bindSelected(settings::offerVsCodeTasks)
+                            .comment(RunnersBarBundle.message("settings.vscode.comment"))
+                    }
+                }
+            }
             group(RunnersBarBundle.message("settings.runAnything")) {
                 row(RunnersBarBundle.message("settings.runAnything.prefix")) {
                     textField()
