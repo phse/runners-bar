@@ -22,6 +22,12 @@ object VsCodeTasks {
     private val SKIPPED_FOLDERS = setOf("node_modules", "vendor")
 
     /** Task-Runner und ihre Option für eine andere Datei als gulpfile.js usw. */
+    /** Befehle, die eine Eingabe oder ein TTY erwarten: Remote-Shells, Datenbank-Clients, Editoren, `read`, `-it`. */
+    private val INTERACTIVE = Regex(
+        """\b(ssh|sftp|telnet|mysql|psql|redis-cli|mongosh?|sudo|read|vim?|nano|less|top|htop|import-db|import-files)\b""" +
+            """|(^|\s)-(it|ti)\b|--interactive\b|--tty\b""",
+    )
+
     private val TASK_RUNNERS = mapOf("gulp" to "--gulpfile", "grunt" to "--gruntfile", "jake" to "--jakefile")
 
     /**
@@ -36,9 +42,20 @@ object VsCodeTasks {
         val workingDirectory: String,
         val env: Map<String, String>,
         val unsupported: String? = null,
+        /** Zielgruppe; null = nach dem Ordner benannt, siehe [VsCodeTasksImport.groupName]. */
+        val group: String? = null,
+        /** Im Dialog statt des Befehls angezeigt. */
+        val description: String? = null,
+        /** Trennt die Quellen (VS Code, DDEV), damit gleich benannte Tasks sich nicht in die Quere kommen. */
+        val keyPrefix: String = "",
+        /** Im Dialog vorausgewählt. */
+        val preselected: Boolean = true,
     ) {
         /** Wiedererkennung über erneute Importe hinweg. */
-        val key: String get() = "$folder/$label"
+        val key: String get() = "$keyPrefix$folder/$label"
+
+        /** Braucht ein echtes Terminal (Shells, Tunnel, Rückfragen); sonst läuft er im Run-Fenster, wo Neu starten geht. */
+        val needsTerminal: Boolean get() = INTERACTIVE.containsMatchIn(command)
     }
 
     fun hasTasks(basePath: String?): Boolean = taskFiles(basePath).isNotEmpty()

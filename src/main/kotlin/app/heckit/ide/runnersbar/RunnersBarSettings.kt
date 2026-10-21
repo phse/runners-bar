@@ -38,6 +38,9 @@ class RunnersBarSettingsState {
     /** Beim Öffnen eines Projekts melden, wenn .vscode/tasks.json neue Tasks enthält. */
     var offerVsCodeTasks: Boolean = true
 
+    /** Beim Öffnen eines Projekts melden, wenn es DDEV nutzt und Befehle noch nicht übernommen sind. */
+    var offerDdevCommands: Boolean = true
+
     companion object {
         const val DEFAULT_RUN_ANYTHING_PREFIX = "bar"
     }
@@ -110,6 +113,12 @@ class RunnersBarSettings : PersistentStateComponent<RunnersBarSettingsState> {
             state.offerVsCodeTasks = value
         }
 
+    var offerDdevCommands: Boolean
+        get() = state.offerDdevCommands
+        set(value) {
+            state.offerDdevCommands = value
+        }
+
     companion object {
         fun getInstance(): RunnersBarSettings =
             ApplicationManager.getApplication().getService(RunnersBarSettings::class.java)
@@ -163,6 +172,13 @@ class RunnersBarConfigurable(private val project: Project) : BoundConfigurable(R
                         checkBox(RunnersBarBundle.message("settings.vscode.offer"))
                             .bindSelected(settings::offerVsCodeTasks)
                             .comment(RunnersBarBundle.message("settings.vscode.comment"))
+                    }
+                }
+                group(RunnersBarBundle.message("settings.ddev")) {
+                    row {
+                        checkBox(RunnersBarBundle.message("settings.ddev.offer"))
+                            .bindSelected(settings::offerDdevCommands)
+                            .comment(RunnersBarBundle.message("settings.ddev.comment"))
                     }
                 }
             }

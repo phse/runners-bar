@@ -16,6 +16,7 @@ import com.intellij.openapi.actionSystem.ActionGroup
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.Constraints
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.Separator
 import com.intellij.openapi.actionSystem.impl.SimpleDataContext
@@ -54,6 +55,7 @@ import java.awt.Rectangle
 import java.awt.RenderingHints
 import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
+import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.Icon
 import javax.swing.JComponent
@@ -97,6 +99,19 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
         isOpaque = true
         background = JBColor.namedColor("StatusBar.background", UIUtil.getPanelBackground())
         add(tabs, BorderLayout.CENTER)
+        // Rechtsklick auf freie Fläche zeigt das Runners-Bar-Menü des „+“; Tabs und Bedienelemente haben eigene Menüs.
+        val contextMenu = object : MouseAdapter() {
+            override fun mousePressed(e: MouseEvent) = showContextMenu(e)
+            override fun mouseReleased(e: MouseEvent) = showContextMenu(e)
+            private fun showContextMenu(e: MouseEvent) {
+                if (!e.isPopupTrigger) return
+                e.consume()
+                showActionPopup(RunnersBarBundle.message("bar.options"), barOptionsGroup(), addButton, RelativePoint(e))
+            }
+        }
+        addMouseListener(contextMenu)
+        tabs.addMouseListener(contextMenu)
+        controls.addMouseListener(contextMenu)
         applySettings()
 
         val connection = project.messageBus.connect(parent)
@@ -234,7 +249,21 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
                     group.add(sub)
                 }
             }
+        ddevGroup()?.let { group.add(it, Constraints.FIRST) }
         return group
+    }
+
+    /** „DDEV“ in „New Run Configuration“: ein Befehl als Shell-Konfiguration (wie beim Import), direkt in die aktive Gruppe. */
+    private fun ddevGroup(): ActionGroup? {
+        if (!RunnersBarShell.isAvailable) return null
+        val tasks = DdevCommands.find(project.basePath).ifEmpty { return null }
+        val several = tasks.map { it.folder }.distinct().size > 1
+        val sub = submenu("DDEV", AllIcons.Nodes.Console)
+        tasks.forEach { task ->
+            val text = if (several) "${task.label} (${VsCodeTasksImport.groupName(project, task)})" else task.label
+            sub.add(popupAction(text, null) { service.add(VsCodeTasksImport.importOne(project, task)) })
+        }
+        return sub
     }
 
     /** Legt eine Konfiguration an, öffnet ihren Editor und nimmt sie nach „OK“ direkt in die aktive Gruppe auf. */
@@ -257,10 +286,16 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
         fun <T> own(value: T, default: T): T? = value.takeUnless { it == default }
         return submenu(RunnersBarBundle.message("bar.options"), AllIcons.General.Settings).apply {
             add(shareAction(service.activeGroupName))
+            tidyActions(service.activeGroupName).forEach(::add)
             add(popupAction(RunnersBarBundle.message("bar.hide"), AllIcons.Actions.Close) { hideInProject() })
             if (RunnersBarShell.isAvailable && VsCodeTasks.hasTasks(project.basePath)) {
                 add(popupAction(RunnersBarBundle.message("action.RunnersBar.ImportVsCodeTasks.text"), AllIcons.ToolbarDecorator.Import) {
                     VsCodeTasksImport.open(project)
+                })
+            }
+            if (RunnersBarShell.isAvailable && DdevCommands.hasProjects(project.basePath)) {
+                add(popupAction(RunnersBarBundle.message("action.RunnersBar.ImportDdevCommands.text"), AllIcons.ToolbarDecorator.Import) {
+                    VsCodeTasksImport.open(project, TaskSource.DDEV)
                 })
             }
             add(Separator.create(RunnersBarBundle.message("settings.position")))
@@ -312,6 +347,7 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
         group.add(popupAction(RunnersBarBundle.message("group.rename", groupDisplayName(active)), AllIcons.Actions.Edit) {
             renameGroup(active)
         })
+        tidyActions(active).forEach(group::add)
         group.add(popupAction(RunnersBarBundle.message("group.remove", groupDisplayName(active)), AllIcons.General.Remove) {
             removeGroup(active)
         })
@@ -386,6 +422,30 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
         if (Messages.showYesNoDialog(project, message, title, Messages.getQuestionIcon()) == Messages.YES) {
             service.setShared(name, share)
         }
+    }
+
+    /** Sortieren und Aufräumen der aktiven Gruppe; im Gruppen-Umschalter und im Runners-Bar-Menü (das es auch bei nur einer Gruppe gibt). */
+    private fun tidyActions(name: String): List<AnAction> {
+        val orphaned = service.orphanedEntries()
+        return listOf(
+            popupAction(RunnersBarBundle.message("group.sort"), AllIcons.ObjectBrowser.Sorted, service.entries.size > 1) {
+                service.sortActiveGroup()
+            },
+            popupAction(RunnersBarBundle.message("group.cleanup"), AllIcons.Actions.GC, orphaned.isNotEmpty()) {
+                cleanupGroup(name, orphaned)
+            },
+        )
+    }
+
+    /** Tabs ohne Run Configuration nach Rückfrage (mit ihren Namen) aus der Gruppe entfernen. */
+    private fun cleanupGroup(name: String, orphaned: List<RunnersBarEntry>) {
+        val answer = Messages.showYesNoDialog(
+            project,
+            RunnersBarBundle.message("group.cleanup.confirm", groupDisplayName(name), orphaned.joinToString(", ") { it.name }),
+            RunnersBarBundle.message("group.cleanup.title"),
+            Messages.getQuestionIcon(),
+        )
+        if (answer == Messages.YES) service.removeOrphaned()
     }
 
     private fun removeGroup(name: String) {
@@ -743,7 +803,8 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
     private fun groupDisplayName(name: String): String =
         if (name == RunnersBarGroup.DEFAULT_GROUP) RunnersBarBundle.message("group.default") else name
 
-    private fun showActionPopup(title: String?, group: ActionGroup, anchor: JComponent): JBPopup =
+    /** [at]: an der Maus statt an [anchor] (Rechtsklick auf die Leiste). */
+    private fun showActionPopup(title: String?, group: ActionGroup, anchor: JComponent, at: RelativePoint? = null): JBPopup =
         JBPopupFactory.getInstance()
             .createActionGroupPopup(
                 title,
@@ -752,7 +813,7 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
                 JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
                 true,
             )
-            .also { it.showAtBar(anchor, layout) }
+            .also { if (at != null) it.show(at) else it.showAtBar(anchor, layout) }
 }
 
 /** Fragt einen Namen für eine Run Configuration ab; null bei Abbruch. */

@@ -11,6 +11,7 @@ with your favourite run configurations above the status bar or below the toolbar
 
 - **+** adds a run configuration (popup with search). **New Run Configuration** creates a new
   one: pick the type, fill in the editor, and after *OK* it is added to the bar right away.
+  Right-clicking an empty spot of the bar opens the + menu's **Runners Bar** submenu at the mouse.
 - **Run Anything** (double Ctrl): `bar npm run dev` (any command after the prefix) asks for a name,
   creates a configuration for the command in the selected directory, adds it to the bar and runs
   it. If another Run Anything provider understands the command (npm scripts, Gradle, Maven, …), its
@@ -31,6 +32,17 @@ with your favourite run configurations above the status bar or below the toolbar
   configurations are personal. Run the import again (+ | Runners Bar | *Import VS Code Tasks...*
   or Find Action) to add the tasks you left out; tasks already imported are updated from the file.
   The notification can be switched off in the settings; it only comes back for new tasks.
+- **DDEV**: in a DDEV project (`.ddev/config.yaml` in the project or a direct subfolder) a
+  notification offers to import the usual commands (`ddev start`, `stop`, `restart`, `describe`,
+  `launch`, `ssh`, `logs -f`, `composer install`, `import-db`, `snapshot`) and the project's own
+  commands from `.ddev/commands/*/` (with their `## Description:`) into a group *DDEV*. Commands
+  DDEV ships itself (`#ddev-generated`) are listed but not preselected. They run in the terminal,
+  in the DDEV project folder. Single commands can also be added via + | *New Run Configuration* |
+  *DDEV*; the import is in + | Runners Bar | *Import DDEV Commands...*.
+- Imported tasks (VS Code and DDEV) run in the terminal only if they need one (ssh, database
+  clients, `read`, `-it`, `ddev import-db`, …); the rest run in the Run window, where *Restart*
+  and *Stop* work. The import dialog presets a *Terminal* checkbox per task accordingly. Existing
+  tabs: Shell | *Execute in the Terminal* in their menu.
 - Configurations that Run Anything (or the IDE) created **temporarily** appear in the + menu
   in the *Temporary Configurations* submenu, together with shell commands recently run through
   Run Anything (those become Shell Script configurations). Adding one asks for a name and keeps it
@@ -39,7 +51,9 @@ with your favourite run configurations above the status bar or below the toolbar
   project, and switches position (top/bottom), tab alignment (left/center/right) and the side of
   the controls (left/right).
 - **Groups**: as soon as there is more than one, a switcher appears next to the +. Use it to
-  switch, rename and delete groups. A configuration can be part of several groups. The last
+  switch, rename and delete groups. *Sort Tabs Alphabetically* tidies up a group after an import,
+  *Remove Tabs Without Configuration…* drops tabs whose run configuration was deleted (both also
+  in the + menu's **Runners Bar** submenu). A configuration can be part of several groups. The last
   active group is remembered per project.
 - **Move or copy to another group**: *Move to Group* in the tab menu lists the other groups
   (greyed out where the configuration already is) and *New Group…*. Hold **⌥** (macOS) or
@@ -61,7 +75,7 @@ with your favourite run configurations above the status bar or below the toolbar
 - The **arrow** (or a right click) opens the menu:
   - Debug once / run once without the debugger
   - Debug mode (switch the tab to debug permanently)
-  - Stop (while it is running)
+  - Restart and Stop (while it is running)
   - Settings… (the configuration's editor)
   - Rename…
   - Duplicate… (opens the copy's editor; after *OK* it is placed right behind the original)

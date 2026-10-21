@@ -151,6 +151,7 @@ class RunnersBarTab(
             override fun getActionUpdateThread() = ActionUpdateThread.EDT
         })
         if (tracker.isRunning(entry.configId)) {
+            group.add(popupAction(RunnersBarBundle.message("menu.restart"), AllIcons.Actions.Restart) { tracker.restart(entry.configId) })
             group.add(popupAction(RunnersBarBundle.message("menu.stop"), AllIcons.Actions.Suspend) { tracker.stop(entry.configId) })
         }
         group.add(Separator.getInstance())
@@ -166,10 +167,10 @@ class RunnersBarTab(
             settings?.let { service.duplicate(entry, it, RunnersBarBundle.message("dialog.duplicate.title")) }
         })
         settings?.let { s ->
-            RunnersBarShell.executesInTerminal(s)?.let { inTerminal ->
+            if (RunnersBarShell.executesInTerminal(s) != null) {
                 val shell = submenu(RunnersBarBundle.message("menu.shell"), AllIcons.Nodes.Console)
                 shell.add(object : DumbAwareToggleAction(RunnersBarBundle.message("menu.executeInTerminal")) {
-                    override fun isSelected(e: AnActionEvent) = inTerminal
+                    override fun isSelected(e: AnActionEvent) = RunnersBarShell.executesInTerminal(s) == true
                     override fun setSelected(e: AnActionEvent, state: Boolean) = RunnersBarShell.setExecuteInTerminal(project, s, state)
                     override fun getActionUpdateThread() = ActionUpdateThread.EDT
                 })

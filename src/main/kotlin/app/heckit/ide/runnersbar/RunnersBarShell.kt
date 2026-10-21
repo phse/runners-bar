@@ -31,16 +31,22 @@ object RunnersBarShell {
     }
 
     /**
-     * Legt für einen VS-Code-Task eine Konfiguration an oder aktualisiert [existing]. Läuft im Terminal wie in VS Code:
-     * Tunnel, ddev und Rückfragen brauchen ein echtes Terminal.
+     * Legt für einen VS-Code-Task eine Konfiguration an oder aktualisiert [existing]. Neue laufen im Terminal, wenn
+     * [inTerminal] (Vorgabe: [VsCodeTasks.Task.needsTerminal]); bei bestehenden bleibt die Einstellung, wie sie ist.
      */
-    fun createOrUpdate(project: Project, task: VsCodeTasks.Task, name: String, existing: RunnerAndConfigurationSettings?): RunnerAndConfigurationSettings {
+    fun createOrUpdate(
+        project: Project,
+        task: VsCodeTasks.Task,
+        name: String,
+        existing: RunnerAndConfigurationSettings?,
+        inTerminal: Boolean = task.needsTerminal,
+    ): RunnerAndConfigurationSettings {
         val runManager = RunManager.getInstance(project)
         val type = ShConfigurationType.getInstance()
         val settings = existing ?: runManager.createConfiguration(runManager.suggestUniqueName(name, type), type)
         (settings.configuration as? ShRunConfiguration)?.apply {
             isExecuteScriptFile = false
-            if (existing == null) isExecuteInTerminal = true
+            if (existing == null) isExecuteInTerminal = inTerminal
             scriptText = task.command
             scriptWorkingDirectory = task.workingDirectory
             envData = EnvironmentVariablesData.create(task.env, true)

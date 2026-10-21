@@ -5,5 +5,6 @@
     </extensions>
     <actions>
         <action id="RunnersBar.ImportVsCodeTasks" class="app.heckit.ide.runnersbar.ImportVsCodeTasksAction" icon="AllIcons.ToolbarDecorator.Import"/>
+        <action id="RunnersBar.ImportDdevCommands" class="app.heckit.ide.runnersbar.ImportDdevCommandsAction" icon="AllIcons.ToolbarDecorator.Import"/>
     </actions>
 </idea-plugin>

@@ -55,6 +55,18 @@ intellijPlatform {
             untilBuild = provider { null }
         }
         changeNotes = """
+            <h3>2.1.0</h3>
+            <ul>
+              <li>DDEV: in a DDEV project, import <code>ddev start</code>, <code>ddev ssh</code>, <code>ddev logs -f</code> and
+                  friends plus the project's own commands from <code>.ddev/commands</code> into a <i>DDEV</i> group, or add single
+                  commands via <i>New Run Configuration | DDEV</i>. A notification offers the import when a DDEV project opens.</li>
+              <li>Imported tasks run in the terminal only when they need one (ssh, tunnels, database clients, prompts); the import
+                  dialog has a <i>Terminal</i> checkbox per task.</li>
+              <li><i>Restart</i> in the tab menu while a configuration is running.</li>
+              <li>Per group: <i>Sort Tabs Alphabetically</i> and <i>Remove Tabs Without Configuration…</i>.</li>
+              <li>Right-click an empty spot of the bar for the <i>Runners Bar</i> menu.</li>
+              <li>Fixed: the <i>Execute in the Terminal</i> check mark in the tab menu updates right away.</li>
+            </ul>
             <h3>2.0.0</h3>
             <ul>
               <li><i>Add to Runners Bar...</i> in the context menu and in the menu of the gutter run icon: right-click a script in
