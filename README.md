@@ -17,15 +17,34 @@ with your favourite run configurations above the status bar or below the toolbar
   own configuration type is used; otherwise a Shell Script configuration that runs in the Run tool
   window. The prefix `bar` can be changed in the settings (one value for all projects). Needs the
   bundled Shell Script plugin.
+- **From anywhere**: right-click a place the IDE can run (a script in `package.json`, a test, a
+  main method, …) or open the menu of the green run icon in the gutter and choose **Add to Runners
+  Bar...**. It asks for a name, creates the configuration if needed and adds it to the current group.
+- **VS Code tasks**: if the project (or one of its direct subfolders) has a `.vscode/tasks.json`,
+  a notification offers to import the tasks (*Import...*, *Not now*, *Don't offer again*). The
+  import dialog lists every task with its command; pick the ones you want. Each folder becomes a
+  group, each task a Shell Script configuration that runs in the terminal, in its folder, with its
+  `env`. Supported: `shell`, `process`, `npm`, `gulp`, `grunt`, `jake`, `docker-build` and
+  `docker-compose` tasks, comments in the file, `${workspaceFolder}`, `${env:…}` and the `osx`/
+  `linux`/`windows` variants. Tasks that need VS Code (`${file}`, `${input:…}`, only `dependsOn`,
+  extension types such as `docker-run`) are shown greyed out with the reason. Imported
+  configurations are personal. Run the import again (+ | Runners Bar | *Import VS Code Tasks...*
+  or Find Action) to add the tasks you left out; tasks already imported are updated from the file.
+  The notification can be switched off in the settings; it only comes back for new tasks.
 - Configurations that Run Anything (or the IDE) created **temporarily** appear in the + menu
   in the *Temporary Configurations* submenu, together with shell commands recently run through
   Run Anything (those become Shell Script configurations). Adding one asks for a name and keeps it
   for good.
-- The **Runners Bar** submenu in the + menu creates a new group, hides the bar in the current
+- **New Group…** in the + menu creates a group. The **Runners Bar** submenu hides the bar in the current
   project, and switches position (top/bottom), tab alignment (left/center/right) and the side of
   the controls (left/right).
 - **Groups**: as soon as there is more than one, a switcher appears next to the +. Use it to
-  switch, rename and delete groups. A configuration can be part of several groups.
+  switch, rename and delete groups. A configuration can be part of several groups. The last
+  active group is remembered per project.
+- **Move or copy to another group**: *Move to Group* in the tab menu lists the other groups
+  (greyed out where the configuration already is) and *New Group…*. Hold **⌥** (macOS) or
+  **Ctrl** (Windows, Linux) to copy instead; the entry then reads *Copy to Group*. A
+  notification confirms it, with *Undo* and *Switch to Group*.
 - **Team groups**: *Share with the Team…* (group switcher or the + menu's **Runners Bar** submenu,
   or a checkbox in the settings) moves a group to `.idea/runnersBar.xml`. Commit that file and
   everyone gets the same tabs, e.g. *Start dev*, *Tests*, *Deploy staging*. Run configurations of a
@@ -35,7 +54,9 @@ with your favourite run configurations above the status bar or below the toolbar
   after `git pull`). *Stop Sharing…* moves a group back to your workspace.
 - **Drag and drop**: drag tabs to reorder them, just like editor tabs: the tab follows the mouse
   and the other tabs make room. Dragged outside the bar, the tab turns red with a trash icon;
-  dropping it there removes it from the group. Press **Escape** while dragging to cancel.
+  dropping it there removes it from the group. Keep it outside for half a second and a list of
+  the other groups appears next to the mouse: drop it on a group to move it there, with **⌥** /
+  **Ctrl** to copy it (a green + shows on the tab). Press **Escape** while dragging to cancel.
 - **Clicking a tab** starts the configuration right away (run, or debug if switched to debug mode).
 - The **arrow** (or a right click) opens the menu:
   - Debug once / run once without the debugger
@@ -44,6 +65,7 @@ with your favourite run configurations above the status bar or below the toolbar
   - Settings… (the configuration's editor)
   - Rename…
   - Duplicate… (opens the copy's editor; after *OK* it is placed right behind the original)
+  - Move to Group / Copy to Group (see above)
   - Shell (Shell Script configurations only): *Execute in the Terminal* and, if a Run Anything
     provider understands the command, convert it to that provider's configuration (runs it)
   - Remove (from the bar) / Delete… (deletes the configuration, after a confirmation)
@@ -59,7 +81,8 @@ with your favourite run configurations above the status bar or below the toolbar
   *center* or *right*, controls (+, group switcher) *left* or *right*, menu arrow on the tabs shown
   or hidden (the menu is always available with a right click). The first column holds the
   **defaults for all projects**, the second one the current project's value or *Same as all
-  projects*. Below the table, every group of the project has a *Share with the team* checkbox.
+  projects*. Below the table, every group of the project has a *Share with the team* checkbox,
+  and *VS Code tasks* switches the import notification on or off.
   The **Runners Bar** submenu of the + menu changes the current project only; choosing the default
   value there makes the project follow the default again. New tabs are always appended on the right.
 
@@ -167,6 +190,9 @@ the plugin is unloaded, the original state is restored.
 | `RunnersBarState.kt` | Persisted state (personal and shared groups, entries, per-project values) |
 | `RunnersBarPanel.kt` | The bar, the "+" popup with its submenus, and drag and drop |
 | `RunnersBarTab.kt` | Tab with click-to-run and menu |
+| `AddToRunnersBarAction.kt` | *Add to Runners Bar...* in the context menu and the gutter run icon's menu |
+| `VsCodeTasks.kt` | Reads `.vscode/tasks.json` (JSON with comments) and translates tasks into commands |
+| `VsCodeTasksImport.kt` | Import dialog, notification on project open, *Import VS Code Tasks...* action |
 | `RunnersBarExecution.kt` | Starting (run/debug) and detecting running processes |
 | `RunnersBarSettings.kt` | Defaults (position, tab and control alignment, menu arrow) and the settings page with per-project overrides |
 | `ToggleRunnersBarAction.kt` | Toggles in *View \| Appearance* (global and per project) |

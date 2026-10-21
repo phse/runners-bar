@@ -34,6 +34,17 @@ class RunnersBarState {
     var controlsAlignment: ControlsAlignment? = null
     var tabsAlignment: TabsAlignment? = null
     var showMenuArrow: Boolean? = null
+
+    /** Aus .vscode/tasks.json übernommene Tasks ([VsCodeTasks.Task.key]) und ihre Konfigurationen. */
+    var vsCodeTasks: MutableList<RunnersBarImportedTask> = mutableListOf()
+
+    /** Tasks, die im Import-Dialog schon zur Wahl standen; nur neue Tasks lösen wieder eine Meldung aus. */
+    var offeredVsCodeTasks: MutableList<String> = mutableListOf()
+}
+
+class RunnersBarImportedTask {
+    var key: String = ""
+    var configId: String = ""
 }
 
 /** Gruppen, die mit dem Team geteilt werden: liegen in .idea/runnersBar.xml und damit in der Versionskontrolle. */

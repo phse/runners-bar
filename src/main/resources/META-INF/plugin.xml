@@ -16,17 +16,20 @@
   <li><b>Arrow menu per tab</b>: debug once (or run once without the debugger), toggle debug mode, stop, open the configuration's settings, move or remove the tab.</li>
   <li><b>Groups</b>: keep different sets of tabs, e.g. <i>Frontend</i>, <i>Backend</i> or <i>Deploy</i>, and switch between them. A configuration can be part of several groups.</li>
   <li><b>Team groups</b>: share a group with your team. It is stored in <code>.idea/runnersBar.xml</code>; commit it and everyone gets the same tabs, e.g. <i>Start dev</i>, <i>Tests</i>, <i>Deploy staging</i>.</li>
-  <li><b>Drag and drop</b>: reorder tabs by dragging them like editor tabs; drag a tab out of the bar and drop it to remove it; press Escape to cancel.</li>
+  <li><b>Drag and drop</b>: reorder tabs by dragging them like editor tabs; drag a tab out of the bar and drop it to remove it, or wait a moment and drop it on another group to move it there (hold Option/Ctrl to copy); press Escape to cancel.</li>
+  <li><b>Move or copy to another group</b> from the tab menu, with <i>Undo</i> in the confirmation.</li>
+  <li><b>VS Code tasks</b>: import the tasks from <code>.vscode/tasks.json</code> (also from subfolders) as run configurations, one group per folder. Pick the tasks you want; shell, npm, gulp, grunt, jake, docker-build and docker-compose tasks are supported.</li>
   <li><b>New configurations</b>: create a run configuration from the + menu, it lands in the bar right away.</li>
   <li><b>Your layout</b>: place the bar below the toolbar or above the status bar, align the tabs left, center or right, put the controls on either side and hide the menu arrow if you prefer the right click. Set your defaults once and override them per project.</li>
   <li><b>Run Anything</b>: type <code>bar npm run dev</code> (or any shell command) in Run Anything to create a tab for it and run it. Configurations that Run Anything creates temporarily are kept for good once you add them to the bar.</li>
+  <li><b>From anywhere</b>: right-click a script in <code>package.json</code>, a test or a main method (or use the run icon in the gutter) and choose <b>Add to Runners Bar...</b>. Name it and the tab is there.</li>
   <li><b>Running state</b>: running configurations are highlighted.</li>
   <li>Follows renamed configurations, keeps the bar per project and stores it in your personal workspace (not in version control), except for groups you share.</li>
 </ul>
 
 <h3>Usage</h3>
 <ul>
-  <li>Click <b>+</b> to add an existing or a new run configuration. Its <b>Runners Bar</b> submenu creates groups,
+  <li>Click <b>+</b> to add an existing or a new run configuration, or to create a group. Its <b>Runners Bar</b> submenu
       hides the bar in the current project and changes position and alignment.</li>
   <li>Settings: <b>Settings | Appearance &amp; Behavior | Runners Bar</b>, a table with the defaults for all projects next to the values of the current project, and the project's groups to share.</li>
   <li>Show or hide the bar via <b>View | Appearance | Runners Bar</b>.</li>
@@ -46,6 +49,8 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <notificationGroup id="Runners Bar" displayType="BALLOON" key="notification.group"/>
+        <!-- Bleibt stehen, bis man sich entscheidet: Import, Jetzt nicht oder Nicht mehr anbieten. -->
+        <notificationGroup id="Runners Bar VS Code Tasks" displayType="STICKY_BALLOON" key="notification.group.vscode"/>
         <projectConfigurable parentId="appearance" id="app.heckit.ide.runnersbar"
                                  instance="app.heckit.ide.runnersbar.RunnersBarConfigurable"
                                  key="settings.displayName" bundle="messages.RunnersBarBundle"/>
@@ -59,5 +64,12 @@
         <action id="RunnersBar.ToggleProject" class="app.heckit.ide.runnersbar.ToggleRunnersBarInProjectAction">
             <add-to-group group-id="UIToggleActions" anchor="after" relative-to-action="RunnersBar.Toggle"/>
         </action>
+        <action id="RunnersBar.AddFromContext" class="app.heckit.ide.runnersbar.AddToRunnersBarAction" icon="AllIcons.General.Add">
+            <add-to-group group-id="RunContextGroupInner" anchor="last"/>
+        </action>
+        <!-- Das Menü am Run-Icon übernimmt aus RunLineMarkerExtraActions nur Gruppen, keine einzelnen Aktionen. -->
+        <group id="RunnersBar.AddFromGutter" class="app.heckit.ide.runnersbar.AddToRunnersBarGutterGroup">
+            <add-to-group group-id="RunLineMarkerExtraActions" anchor="last"/>
+        </group>
     </actions>
 </idea-plugin>

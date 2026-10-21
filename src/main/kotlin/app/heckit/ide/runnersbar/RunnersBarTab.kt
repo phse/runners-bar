@@ -14,6 +14,9 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
+import com.intellij.openapi.ui.popup.JBPopupListener
+import com.intellij.openapi.ui.popup.LightweightWindowEvent
+import com.intellij.openapi.util.SystemInfo
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.JBUI
@@ -22,8 +25,12 @@ import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Graphics2D
+import java.awt.KeyEventDispatcher
+import java.awt.KeyboardFocusManager
 import java.awt.Point
 import java.awt.RenderingHints
+import java.awt.event.InputEvent
+import java.awt.event.KeyEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.Icon
@@ -41,7 +48,8 @@ class RunnersBarTab(
 ) : JPanel(BorderLayout()) {
 
     /** Beim Ziehen ist der Tab in der Leiste nur ein leerer Platzhalter, die [ghost]-Kopie zeigt den Zustand. */
-    enum class DragState { NONE, MOVE, REMOVE }
+    enum class DragState { NONE, MOVE, REMOVE, GROUP }
+
 
     var dragState = DragState.NONE
         set(value) {
@@ -62,9 +70,9 @@ class RunnersBarTab(
         add(main, BorderLayout.CENTER)
         add(arrow, BorderLayout.EAST)
         main.onClick = { run(entry.debug) }
-        main.onPopup = { showMenu() }
-        arrow.onClick = { showMenu() }
-        arrow.onPopup = { showMenu() }
+        main.onPopup = { showMenu(isCopyGesture(main.lastEvent)) }
+        arrow.onClick = { showMenu(isCopyGesture(arrow.lastEvent)) }
+        arrow.onPopup = { showMenu(isCopyGesture(arrow.lastEvent)) }
         val drag = object : HoverLabel.DragListener {
             override fun dragMoved(e: MouseEvent) = bar.dragMoved(this@RunnersBarTab, e)
             override fun dragEnded(e: MouseEvent) = bar.dragEnded(this@RunnersBarTab, e)
@@ -110,7 +118,8 @@ class RunnersBarTab(
 
     private fun canDebug(): Boolean = service.findSettings(entry)?.let { RunnersBarExecution.canDebug(it) } == true
 
-    internal fun showMenu(): JBPopup {
+    /** [copy]: beim Öffnen war die Kopier-Taste gedrückt, „In Gruppe verschieben“ wird zu „In Gruppe kopieren“. */
+    internal fun showMenu(copy: Boolean = false): JBPopup {
         val group = DefaultActionGroup()
 
         // Text und Icon hängen am aktuellen Modus, damit der Eintrag nach dem Umschalten stimmt.
@@ -173,6 +182,7 @@ class RunnersBarTab(
                 group.add(shell)
             }
         }
+        group.add(groupTargets(copy))
         group.add(Separator.getInstance())
         group.add(popupAction(RunnersBarBundle.message("menu.remove"), AllIcons.General.Remove) { service.remove(entry) })
         group.add(popupAction(RunnersBarBundle.message("menu.delete"), AllIcons.Actions.GC, settings != null) {
@@ -195,13 +205,70 @@ class RunnersBarTab(
                 JBPopupFactory.ActionSelectionAid.MNEMONICS,
                 true,
             )
-            .also { it.showAtBar(this, bar.layout) }
+            .also { popup ->
+                popup.showAtBar(this, bar.layout)
+                reopenOnCopyKey(popup, copy)
+            }
+    }
+
+    /**
+     * Drückt oder löst man die Kopier-Taste bei offenem Menü, wird es neu geöffnet, damit „In Gruppe verschieben“ und
+     * „In Gruppe kopieren“ sofort wechseln: Ein offenes Aktionsmenü aktualisiert seine Einträge nicht von selbst. Das kurze
+     * Flackern ist gewollt in Kauf genommen, so sieht man, ob die richtige Taste gedrückt ist.
+     */
+    private fun reopenOnCopyKey(popup: JBPopup, copy: Boolean) {
+        val copyKey = if (SystemInfo.isMac) KeyEvent.VK_ALT else KeyEvent.VK_CONTROL
+        val focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager()
+        val dispatcher = KeyEventDispatcher { e ->
+            if (e.keyCode != copyKey || popup.isDisposed) return@KeyEventDispatcher false
+            val pressed = e.id == KeyEvent.KEY_PRESSED
+            if ((e.id == KeyEvent.KEY_PRESSED || e.id == KeyEvent.KEY_RELEASED) && pressed != copy) {
+                popup.cancel()
+                SwingUtilities.invokeLater { if (isShowing) showMenu(pressed) }
+            }
+            true
+        }
+        focusManager.addKeyEventDispatcher(dispatcher)
+        popup.addListener(object : JBPopupListener {
+            override fun onClosed(event: LightweightWindowEvent) = focusManager.removeKeyEventDispatcher(dispatcher)
+        })
+    }
+
+    /**
+     * Untermenü mit den anderen Gruppen; Gruppen, in denen die Konfiguration schon liegt, sind ausgegraut.
+     * Die Kopier-Taste beim Klick auf eine Gruppe kopiert ebenfalls.
+     */
+    private fun groupTargets(copy: Boolean): DefaultActionGroup {
+        val key = if (copy) "menu.copyToGroup" else "menu.moveToGroup"
+        val sub = submenu(RunnersBarBundle.message(key), if (copy) AllIcons.Actions.Copy else AllIcons.Actions.MoveTo2)
+        service.groupNames.filter { it != service.activeGroupName }.forEach { name ->
+            val display = if (name == RunnersBarGroup.DEFAULT_GROUP) RunnersBarBundle.message("group.default") else name
+            sub.add(object : DumbAwareAction(display, null, AllIcons.Nodes.Folder) {
+                override fun actionPerformed(e: AnActionEvent) = bar.moveToGroup(entry, name, copy || isCopyGesture(e.inputEvent))
+                override fun update(e: AnActionEvent) {
+                    e.presentation.isEnabled = !service.groupContains(name, entry)
+                }
+
+                override fun getActionUpdateThread() = ActionUpdateThread.EDT
+            })
+        }
+        sub.add(Separator.getInstance())
+        sub.add(popupAction(RunnersBarBundle.message("group.new"), AllIcons.Actions.NewFolder) {
+            val name = bar.askNewGroupName() ?: return@popupAction
+            service.createGroup(name)
+            bar.moveToGroup(entry, name, copy)
+        })
+        if (!copy) sub.add(popupAction(RunnersBarBundle.message("menu.copyHint", COPY_KEY), null, enabled = false) {})
+        return sub
     }
 
     /** Platzhalter: hält beim Verschieben die Lücke frei, beim Rausziehen schrumpft er auf null. */
     override fun getPreferredSize(): Dimension {
         val size = super.getPreferredSize()
-        return if (!ghost && dragState == DragState.REMOVE) Dimension(0, size.height) else size
+        return when {
+            !ghost && (dragState == DragState.REMOVE || dragState == DragState.GROUP) -> Dimension(0, size.height)
+            else -> size
+        }
     }
 
     override fun paint(g: Graphics) {
@@ -223,7 +290,9 @@ class RunnersBarTab(
             }
             if (fill != null) {
                 g2.color = fill
-                g2.fillRoundRect(0, 0, width - 1, height - 1, arc, arc)
+                // Die schwebende Kopie ganz füllen, ihr Fenster ist selbst abgerundet; sonst bleiben die letzte Spalte
+                // und Zeile unbemalt und erscheinen auf dem Mac als schwarzer Schatten unten und rechts.
+                if (ghost) g2.fillRect(0, 0, width, height) else g2.fillRoundRect(0, 0, width - 1, height - 1, arc, arc)
             }
             g2.color = if (dragState == DragState.REMOVE) JBColor.RED else JBColor.border()
             g2.drawRoundRect(0, 0, width - 1, height - 1, arc, arc)
@@ -238,6 +307,11 @@ class RunnersBarTab(
     }
 }
 
+/** Kopier-Taste wie beim Ziehen im System: ⌥ auf dem Mac (Ctrl ist dort Rechtsklick), sonst Ctrl. */
+fun isCopyGesture(e: InputEvent?): Boolean = e != null && if (SystemInfo.isMac) e.isAltDown else e.isControlDown
+
+val COPY_KEY: String get() = if (SystemInfo.isMac) "\u2325" else "Ctrl"
+
 /** Label mit Hover-Hintergrund, das Klicks, Kontextmenü-Gesten und Ziehen meldet. */
 class HoverLabel(icon: Icon? = null, text: String? = null, tooltip: String? = null) : JBLabel(text ?: "", icon, LEFT) {
 
@@ -249,6 +323,10 @@ class HoverLabel(icon: Icon? = null, text: String? = null, tooltip: String? = nu
     var onClick: (() -> Unit)? = null
     var onPopup: (() -> Unit)? = null
     var dragListener: DragListener? = null
+
+    /** Auslösendes Mausereignis für [onClick]/[onPopup], z. B. um gedrückte Tasten abzufragen. */
+    var lastEvent: MouseEvent? = null
+        private set
 
     private var hovered = false
     private var pressed = false
@@ -299,7 +377,10 @@ class HoverLabel(icon: Icon? = null, text: String? = null, tooltip: String? = nu
                     return
                 }
                 if (handlePopup(e)) return
-                if (wasPressed && SwingUtilities.isLeftMouseButton(e) && contains(e.point)) onClick?.invoke()
+                if (wasPressed && SwingUtilities.isLeftMouseButton(e) && contains(e.point)) {
+                    lastEvent = e
+                    onClick?.invoke()
+                }
             }
         }
         addMouseListener(mouse)
@@ -308,6 +389,7 @@ class HoverLabel(icon: Icon? = null, text: String? = null, tooltip: String? = nu
 
     private fun handlePopup(e: MouseEvent): Boolean {
         if (!e.isPopupTrigger) return false
+        lastEvent = e
         (onPopup ?: onClick)?.invoke()
         return true
     }

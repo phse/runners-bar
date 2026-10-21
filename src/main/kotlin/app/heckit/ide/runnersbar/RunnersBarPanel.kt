@@ -29,20 +29,30 @@ import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.wm.impl.IdeBackgroundUtil
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.JBColor
+import com.intellij.ui.components.JBLabel
 import com.intellij.ui.awt.RelativePoint
 import com.intellij.util.ui.EmptyIcon
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import com.intellij.util.ui.WrapLayout
 import java.awt.AWTEvent
+import java.awt.BasicStroke
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.FlowLayout
+import java.awt.GridLayout
 import java.awt.Graphics
+import java.awt.Graphics2D
 import java.awt.GraphicsDevice.WindowTranslucency.PERPIXEL_TRANSLUCENT
+import java.awt.GraphicsDevice.WindowTranslucency.PERPIXEL_TRANSPARENT
+import java.awt.geom.Area
+import java.awt.geom.Ellipse2D
+import java.awt.geom.RoundRectangle2D
 import java.awt.Point
 import java.awt.Rectangle
+import java.awt.RenderingHints
+import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
 import javax.swing.Icon
@@ -50,6 +60,7 @@ import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JWindow
 import javax.swing.SwingConstants
+import javax.swing.Timer
 import javax.swing.SwingUtilities
 
 /** Die eigentliche Leiste: links „+“ und Gruppen-Umschalter, rechts davon die Tabs. */
@@ -151,7 +162,8 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
         val entries = service.entries
         val groups = service.groupNames
 
-        addButton.text = if (entries.isEmpty()) RunnersBarBundle.message("bar.add.empty") else null
+        // Mit Gruppen-Umschalter wäre der Text bei einer leeren Gruppe zu viel; das + allein reicht.
+        addButton.text = if (entries.isEmpty() && service.groupNames.size <= 1) RunnersBarBundle.message("bar.add.empty") else null
         groupSwitcher.isVisible = groups.size > 1
         groupSwitcher.text = groupDisplayName(service.activeGroupName)
 
@@ -194,6 +206,7 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
         }
         group.add(Separator.getInstance())
         group.add(newConfigurationGroup())
+        group.add(popupAction(RunnersBarBundle.message("group.new"), AllIcons.Actions.NewFolder) { newGroup() })
         group.add(barOptionsGroup())
         return showActionPopup(RunnersBarBundle.message("bar.add.title"), group, anchor)
     }
@@ -243,9 +256,13 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
         fun check(selected: Boolean) = if (selected) AllIcons.Actions.Checked else EmptyIcon.ICON_16
         fun <T> own(value: T, default: T): T? = value.takeUnless { it == default }
         return submenu(RunnersBarBundle.message("bar.options"), AllIcons.General.Settings).apply {
-            add(popupAction(RunnersBarBundle.message("group.new"), AllIcons.Actions.NewFolder) { newGroup() })
             add(shareAction(service.activeGroupName))
             add(popupAction(RunnersBarBundle.message("bar.hide"), AllIcons.Actions.Close) { hideInProject() })
+            if (RunnersBarShell.isAvailable && VsCodeTasks.hasTasks(project.basePath)) {
+                add(popupAction(RunnersBarBundle.message("action.RunnersBar.ImportVsCodeTasks.text"), AllIcons.ToolbarDecorator.Import) {
+                    VsCodeTasksImport.open(project)
+                })
+            }
             add(Separator.create(RunnersBarBundle.message("settings.position")))
             listOf(BarPosition.TOP, BarPosition.BOTTOM).forEach { value ->
                 add(popupAction(RunnersBarBundle.message("settings.position.${value.name.lowercase()}"), check(current.position == value)) {
@@ -311,6 +328,31 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
             })
             .notify(project)
     }
+
+    /** Verschiebt oder kopiert den Tab in eine andere Gruppe und meldet es, mit „Zur Gruppe wechseln“. */
+    internal fun moveToGroup(entry: RunnersBarEntry, target: String, copy: Boolean) {
+        val name = service.findSettings(entry)?.name ?: entry.name
+        val source = service.activeGroupName
+        val index = service.entries.indexOf(entry)
+        if (!service.moveToGroup(entry, target, copy)) return
+        val key = if (copy) "notification.copiedToGroup" else "notification.movedToGroup"
+        NotificationGroupManager.getInstance().getNotificationGroup("Runners Bar")
+            .createNotification(RunnersBarBundle.message(key, name, groupDisplayName(target)), NotificationType.INFORMATION)
+            .addAction(NotificationAction.createSimpleExpiring(RunnersBarBundle.message("notification.revert")) {
+                service.undoMoveToGroup(entry, source, index, target, copy)
+                val undone = if (copy) "notification.copyUndone" else "notification.moveUndone"
+                NotificationGroupManager.getInstance().getNotificationGroup("Runners Bar")
+                    .createNotification(RunnersBarBundle.message(undone, name, groupDisplayName(target), groupDisplayName(source)), NotificationType.INFORMATION)
+                    .notify(project)
+            })
+            .addAction(NotificationAction.createSimpleExpiring(RunnersBarBundle.message("notification.showGroup")) {
+                service.selectGroup(target)
+            })
+            .notify(project)
+    }
+
+    /** Name für eine neue Gruppe abfragen; null bei Abbruch. */
+    internal fun askNewGroupName(): String? = askGroupName(RunnersBarBundle.message("group.new.title"), "")
 
     private fun newGroup() {
         val name = askGroupName(RunnersBarBundle.message("group.new.title"), "") ?: return
@@ -382,6 +424,14 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
 
     private var ghost: DragGhost? = null
 
+    /**
+     * Schwebende Liste der anderen Gruppen. Erscheint erst, wenn der Tab kurz außerhalb der Leiste bleibt, und neben dem
+     * Mauszeiger: Rausziehen zum Entfernen (der häufigere Fall) bleibt so ein schneller Wurf.
+     */
+    private var groupDrop: GroupDropList? = null
+    private var groupDropTimer: Timer? = null
+    private var lastDragPoint: Point? = null
+
     /** Per Escape abgebrochenes Ziehen: weitere Mausbewegungen bis zum Loslassen ignorieren. */
     private var cancelledDrag: RunnersBarTab? = null
 
@@ -390,11 +440,37 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
         if (tab === cancelledDrag) return
         val ghost = ghost ?: DragGhost(tab, e).also { ghost = it }
         val outside = isOutside(e)
-        tab.dragState = if (outside) RunnersBarTab.DragState.REMOVE else RunnersBarTab.DragState.MOVE
-        ghost.update(e.locationOnScreen, outside)
+        lastDragPoint = e.locationOnScreen
+        if (!outside) {
+            disposeGroupDrop()
+        } else if (groupDrop == null && groupDropTimer == null && service.groupNames.size > 1) {
+            groupDropTimer = Timer(GROUP_DROP_DELAY) {
+                groupDropTimer = null
+                val point = lastDragPoint ?: return@Timer
+                if (this.ghost == null) return@Timer
+                groupDrop = GroupDropList(tab.entry, point)
+                // Die gezogene Kopie bleibt über der Liste sichtbar.
+                this.ghost?.toFront()
+            }.apply {
+                isRepeats = false
+                start()
+            }
+        }
+        updateDragState(tab, e)
         if (!outside) tabs.place(tab, pointIn(tabs, e))
         tabs.revalidate()
         tabs.repaint()
+    }
+
+    private fun updateDragState(tab: RunnersBarTab, e: InputEvent) {
+        val point = lastDragPoint ?: return
+        val target = groupDrop?.targetAt(point)
+        tab.dragState = when {
+            target != null -> RunnersBarTab.DragState.GROUP
+            isOutside(point) -> RunnersBarTab.DragState.REMOVE
+            else -> RunnersBarTab.DragState.MOVE
+        }
+        ghost?.update(point, tab.dragState, copy = target != null && isCopyGesture(e))
     }
 
     fun dragEnded(tab: RunnersBarTab, e: MouseEvent) {
@@ -404,10 +480,12 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
         }
         ghost?.dispose()
         ghost = null
+        val target = groupDrop?.targetAt(e.locationOnScreen)
+        disposeGroupDrop()
         val outside = isOutside(e)
         tab.dragState = RunnersBarTab.DragState.NONE
         if (outside) {
-            service.remove(tab.entry)
+            if (target != null) moveToGroup(tab.entry, target, isCopyGesture(e)) else service.remove(tab.entry)
             return
         }
         val from = service.entries.indexOf(tab.entry)
@@ -424,6 +502,7 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
     private fun cancelDrag(tab: RunnersBarTab, startIndex: Int) {
         ghost?.dispose()
         ghost = null
+        disposeGroupDrop()
         cancelledDrag = tab
         tab.dragState = RunnersBarTab.DragState.NONE
         if (tab.parent === tabs) tabs.setComponentZOrder(tab, startIndex)
@@ -431,8 +510,10 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
         tabs.repaint()
     }
 
-    private fun isOutside(e: MouseEvent): Boolean {
-        val p = pointIn(this, e)
+    private fun isOutside(e: MouseEvent): Boolean = isOutside(e.locationOnScreen)
+
+    private fun isOutside(screen: Point): Boolean {
+        val p = Point(screen).also { SwingUtilities.convertPointFromScreen(it, this) }
         val margin = JBUI.scale(12)
         return !Rectangle(-margin, -margin, width + 2 * margin, height + 2 * margin).contains(p)
     }
@@ -444,35 +525,108 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
     /** Schwebende Kopie des gezogenen Tabs, eigenes Fenster, damit sie auch außerhalb der Leiste sichtbar bleibt. */
     private inner class DragGhost(tab: RunnersBarTab, e: MouseEvent) {
         private val copy = RunnersBarTab(project, tab.entry, tracker, this@RunnersBarPanel, ghost = true)
+        private val tabSize = tab.size
+
+        /** Das (+) liegt mit seiner Mitte auf der Ecke unten rechts des Tabs; das Fenster ist dafür um den Radius größer. */
+        private val badgeRadius = JBUI.scale(8)
+        private var badge = false
+        private val content = object : JPanel(null) {
+            init {
+                isOpaque = false
+                add(copy)
+                copy.setBounds(0, 0, tabSize.width, tabSize.height)
+            }
+
+            override fun paint(g: Graphics) {
+                super.paint(g)
+                if (!badge) return
+                // Grünes (+) wie beim Kopieren in der IDE und im Finder.
+                val g2 = g.create() as Graphics2D
+                try {
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                    val r = badgeRadius
+                    val cx = tabSize.width
+                    val cy = tabSize.height
+                    g2.color = COPY_BADGE
+                    g2.fillOval(cx - r, cy - r, 2 * r, 2 * r)
+                    g2.color = JBColor.WHITE
+                    g2.stroke = BasicStroke(JBUI.scale(2).toFloat())
+                    val arm = r / 2
+                    g2.drawLine(cx - arm, cy, cx + arm, cy)
+                    g2.drawLine(cx, cy - arm, cx, cy + arm)
+                } finally {
+                    g2.dispose()
+                }
+            }
+        }
+
         private val offset = SwingUtilities.convertPoint(e.component, e.point, tab)
         private val disposable = Disposer.newDisposable("RunnersBar.drag")
-        private val window = JWindow(SwingUtilities.getWindowAncestor(this@RunnersBarPanel)).apply {
-            focusableWindowState = false
-            rootPane.putClientProperty("Window.shadow", false)
-            if (graphicsConfiguration.device.isWindowTranslucencySupported(PERPIXEL_TRANSLUCENT)) {
-                background = Color(0, 0, 0, 0)
+        private var window = createWindow()
+
+        /**
+         * Auf dem Mac ist das Fenster nicht zuverlässig durchsichtig: Was außerhalb von Tab und (+) liegt, würde schwarz.
+         * Deshalb bestimmt die Fensterform, was sichtbar ist (abgerundeter Tab, mit (+) zusätzlich der Kreis). Ein sichtbares
+         * Fenster wird dabei nicht umgeformt oder per toFront nach vorn geholt, sondern durch ein neues ersetzt.
+         */
+        private fun createWindow(location: Point? = null): JWindow =
+            JWindow(SwingUtilities.getWindowAncestor(this@RunnersBarPanel)).apply {
+                focusableWindowState = false
+                rootPane.putClientProperty("Window.shadow", false)
+                if (graphicsConfiguration.device.isWindowTranslucencySupported(PERPIXEL_TRANSLUCENT)) {
+                    background = Color(0, 0, 0, 0)
+                }
+                contentPane = content
+                size = Dimension(tabSize.width + badgeRadius, tabSize.height + badgeRadius)
+                if (graphicsConfiguration.device.isWindowTranslucencySupported(PERPIXEL_TRANSPARENT)) {
+                    val arc = JBUI.scale(8).toDouble()
+                    val area = Area(RoundRectangle2D.Double(0.0, 0.0, tabSize.width.toDouble(), tabSize.height.toDouble(), arc, arc))
+                    if (badge) {
+                        val r = badgeRadius.toDouble()
+                        area.add(Area(Ellipse2D.Double(tabSize.width - r, tabSize.height - r, 2 * r, 2 * r)))
+                    }
+                    shape = area
+                }
+                location?.let {
+                    setLocation(it)
+                    isVisible = true
+                }
             }
-            contentPane = copy
-            size = tab.size
+
+        private fun replaceWindow() {
+            val old = window
+            window = createWindow(old.location.takeIf { old.isVisible })
+            old.dispose()
         }
 
         init {
             // Vor dem Keymap-Dispatcher, sonst schluckt z. B. der Editor das Escape. Nur Swing, daher ohne Lock.
+            // Die Kopier-Taste zeigt das (+) sofort, nicht erst bei der nächsten Mausbewegung.
             val startIndex = tabs.getComponentZOrder(tab)
             IdeEventQueue.getInstance().addDispatcher(object : IdeEventQueue.NonLockedEventDispatcher {
                 override fun dispatch(e: AWTEvent): Boolean {
-                    if (e !is KeyEvent || e.keyCode != KeyEvent.VK_ESCAPE) return false
-                    if (e.id == KeyEvent.KEY_PRESSED) cancelDrag(tab, startIndex)
-                    return true
+                    if (e !is KeyEvent) return false
+                    if (e.keyCode == KeyEvent.VK_ESCAPE) {
+                        if (e.id == KeyEvent.KEY_PRESSED) cancelDrag(tab, startIndex)
+                        return true
+                    }
+                    if (e.keyCode == KeyEvent.VK_ALT || e.keyCode == KeyEvent.VK_CONTROL) updateDragState(tab, e)
+                    return false
                 }
             }, disposable)
         }
 
-        fun update(screen: Point, remove: Boolean) {
-            copy.dragState = if (remove) RunnersBarTab.DragState.REMOVE else RunnersBarTab.DragState.MOVE
+        fun update(screen: Point, state: RunnersBarTab.DragState, copy: Boolean) {
+            this.copy.dragState = state
+            if (badge != copy) {
+                badge = copy
+                replaceWindow()
+            }
             window.setLocation(screen.x - offset.x, screen.y - offset.y)
             if (!window.isVisible) window.isVisible = true
         }
+
+        fun toFront() = replaceWindow()
 
         fun dispose() {
             Disposer.dispose(disposable)
@@ -480,9 +634,86 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
         }
     }
 
+    private fun disposeGroupDrop() {
+        groupDropTimer?.stop()
+        groupDropTimer = null
+        groupDrop?.dispose()
+        groupDrop = null
+    }
+
+    /**
+     * Liste der anderen Gruppen neben der Leiste, dort wo der Tab sie verlassen hat. Ablegen auf einer Gruppe verschiebt
+     * (mit Kopier-Taste: kopiert) den Tab dorthin; Gruppen, in denen er schon liegt, sind ausgegraut.
+     */
+    private inner class GroupDropList(private val entry: RunnersBarEntry, exit: Point) {
+        private val rows = service.groupNames.filter { it != service.activeGroupName }.map { name ->
+            val display = groupDisplayName(name)
+            name to JBLabel(display, AllIcons.Nodes.Folder, SwingConstants.LEFT).apply {
+                border = JBUI.Borders.empty(3, 8)
+                isOpaque = true
+                isEnabled = !service.groupContains(name, entry)
+            }
+        }
+        private var highlighted: JBLabel? = null
+        private val window = JWindow(SwingUtilities.getWindowAncestor(this@RunnersBarPanel)).apply {
+            focusableWindowState = false
+            contentPane = JPanel(GridLayout(0, 1)).apply {
+                border = JBUI.Borders.customLine(JBColor.border())
+                background = JBUI.CurrentTheme.Popup.BACKGROUND
+                add(JBLabel(RunnersBarBundle.message("drag.groups.title", COPY_KEY)).apply {
+                    border = JBUI.Borders.empty(3, 8)
+                    foreground = UIUtil.getContextHelpForeground()
+                })
+                rows.forEach { (_, label) ->
+                    label.background = background
+                    add(label)
+                }
+            }
+            pack()
+            // Rechts neben dem Mauszeiger, nicht darunter; zur Leiste hin bündig mit ihm, damit sie nicht über die Leiste ragt.
+            val gap = JBUI.scale(24)
+            val y = if (this@RunnersBarPanel.layout.position == BarPosition.TOP) exit.y else exit.y - height
+            setLocation(exit.x + gap, y)
+            isVisible = true
+        }
+
+        /** Gruppe unter dem Mauszeiger, sofern der Tab dort noch nicht liegt. */
+        fun targetAt(screen: Point): String? {
+            val hit = rows.firstOrNull { (_, label) ->
+                val p = Point(screen).also { SwingUtilities.convertPointFromScreen(it, label) }
+                label.contains(p)
+            }?.takeIf { it.second.isEnabled }
+            if (highlighted !== hit?.second) {
+                highlighted?.background = window.contentPane.background
+                hit?.second?.background = JBUI.CurrentTheme.List.Selection.background(true)
+                highlighted = hit?.second
+            }
+            return hit?.first
+        }
+
+        fun dispose() = window.dispose()
+    }
+
+    private companion object {
+        /** So lange muss der Tab außerhalb der Leiste bleiben, bis die Gruppenliste erscheint (ms). */
+        const val GROUP_DROP_DELAY = 500
+        val COPY_BADGE = JBColor(0x369650, 0x57965C)
+    }
+
     private inner class TabsPanel : JPanel(WrapLayout(FlowLayout.LEFT, JBUI.scale(2), JBUI.scale(2))) {
         init {
             isOpaque = false
+        }
+
+        /**
+         * Mindestens eine Zeile Tab-Höhe, auch ohne Tabs: Sonst ist die Leiste leer etwas niedriger als mit Tabs,
+         * deren Text (Unterlängen wie g, p, q) höher ist als die Icons neben dem +.
+         */
+        override fun getPreferredSize(): Dimension {
+            val size = super.getPreferredSize()
+            val probe = HoverLabel(icon = AllIcons.Actions.Execute, text = "Ag").preferredSize.height
+            val row = probe + JBUI.scale(2) + 2 * (layout as FlowLayout).vgap
+            return Dimension(size.width, maxOf(size.height, row))
         }
 
         /**
