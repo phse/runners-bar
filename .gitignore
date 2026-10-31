@@ -10,3 +10,6 @@ out/
 !marketplace/demo-project/.idea/
 local.properties
 .DS_Store
+
+# Logo-Entwürfe bleiben lokal
+marketplace/icon-proposals/

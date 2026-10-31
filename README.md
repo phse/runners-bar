@@ -144,11 +144,9 @@ The Marketplace description lives in `src/main/resources/META-INF/plugin.xml`, t
 `build.gradle.kts`, the icon in `META-INF/pluginIcon.svg` (light theme) and `pluginIcon_dark.svg`
 (dark theme). The IDE and the Marketplace read the icon straight from the ZIP, it doesn't have to be
 uploaded separately. After changing the icon, regenerate the preview `marketplace/plugin-icon.png`
-at the top of this README (command below). Earlier drafts are in `marketplace/icon-proposals/` (the previous
-pill icon is `2a-pille-luftig-final`). The current icon fills the whole square like all
+at the top of this README (command below). The current icon fills the whole square like all
 heck\it plugins: gradient `#B04079` → `#5A5A8C` → `#2A7AA0` (45°, same in light and dark theme)
-with a white pill, the controls inside in the same gradient. Alternatives:
-`vollflaechig-linien` (white line symbol without pill) and the inverted `*-invertiert_dark`.
+with a white pill, the controls inside in the same gradient.
 
 ```
 T=$(mktemp -d)
