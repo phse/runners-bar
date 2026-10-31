@@ -20,7 +20,7 @@ import kotlin.reflect.KMutableProperty0
 /** Oben: zwischen Toolbar und Tool-Fenstern. Unten: direkt über der Statuszeile. */
 enum class BarPosition { TOP, BOTTOM }
 
-/** Seite der Bedienelemente („+“, Gruppen-Umschalter). */
+/** Seite der Bedienelemente (Leistenmenü, Gruppen-Umschalter). */
 enum class ControlsAlignment { LEFT, RIGHT }
 
 /** Knopf fürs Menü der Leiste: weiße Pille mit Play-Pfeil im CI-Verlauf, schlichter Play-Pfeil (gefüllt oder als Umriss, grau, im Dunkeln hell) oder das Plus der IDE. */

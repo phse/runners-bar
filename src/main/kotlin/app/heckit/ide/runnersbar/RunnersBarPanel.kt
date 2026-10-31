@@ -74,7 +74,7 @@ private fun buttonIcon(): Icon = when (RunnersBarSettings.getInstance().buttonIc
     ButtonIcon.PLUS -> AllIcons.General.Add
 }
 
-/** Die eigentliche Leiste: links „+“ und Gruppen-Umschalter, rechts davon die Tabs. */
+/** Die eigentliche Leiste: links das Leistenmenü und Gruppen-Umschalter, rechts davon die Tabs. */
 class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel(BorderLayout()) {
 
     private val service get() = RunnersBarService.getInstance(project)
@@ -96,7 +96,7 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
         it.onPopup = it.onClick
     }
 
-    /** „+“, Gruppen-Umschalter und Trennlinie; je nach Ausrichtung links oder rechts. */
+    /** Leistenmenü, Gruppen-Umschalter und Trennlinie; je nach Ausrichtung links oder rechts. */
     private val controls = JPanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(2), JBUI.scale(2))).apply { isOpaque = false }
     private val separatorLine = VerticalLine()
 
@@ -108,7 +108,7 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
         isOpaque = true
         background = JBColor.namedColor("StatusBar.background", UIUtil.getPanelBackground())
         add(tabs, BorderLayout.CENTER)
-        // Rechtsklick auf freie Fläche zeigt das Runners-Bar-Menü des „+“; Tabs und Bedienelemente haben eigene Menüs.
+        // Rechtsklick auf freie Fläche zeigt das Runners-Bar-Untermenü des Leistenmenüs; Tabs und Bedienelemente haben eigene Menüs.
         val contextMenu = object : MouseAdapter() {
             override fun mousePressed(e: MouseEvent) = showContextMenu(e)
             override fun mouseReleased(e: MouseEvent) = showContextMenu(e)
@@ -187,7 +187,7 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
         val entries = service.entries
         val groups = service.groupNames
 
-        // Mit Gruppen-Umschalter wäre der Text bei einer leeren Gruppe zu viel; das + allein reicht.
+        // Mit Gruppen-Umschalter wäre der Text bei einer leeren Gruppe zu viel; das Leistenmenü allein reicht.
         addButton.text = if (entries.isEmpty() && service.groupNames.size <= 1) RunnersBarBundle.message("bar.add.empty") else null
         groupSwitcher.isVisible = groups.size > 1
         groupSwitcher.text = groupDisplayName(service.activeGroupName)

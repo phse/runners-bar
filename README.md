@@ -9,9 +9,9 @@ Plugin ID `app.heckit.ide.runnersbar` · Vendor heck\it ([heckit.app](https://he
 A plugin for JetBrains IDEs (PhpStorm, IntelliJ IDEA, … 2026.1 and later) that adds a slim bar
 with your favourite run configurations above the status bar or below the toolbar.
 
-- The **menu button** (play arrow in a white pill, see the settings for plainer ones) adds a run configuration (popup with search). **New Run Configuration** creates a new
+- The **bar menu** (menu button: play arrow in a white pill, see the settings for plainer ones) adds a run configuration (popup with search). **New Run Configuration** creates a new
   one: pick the type, fill in the editor, and after *OK* it is added to the bar right away.
-  Right-clicking an empty spot of the bar opens the + menu's **Runners Bar** submenu at the mouse.
+  Right-clicking an empty spot of the bar opens the bar menu's **Runners Bar** submenu at the mouse.
 - **Run Anything** (double Ctrl): `bar npm run dev` (any command after the prefix) asks for a name,
   creates a configuration for the command in the selected directory, adds it to the bar and runs
   it. If another Run Anything provider understands the command (npm scripts, Gradle, Maven, …), its
@@ -29,7 +29,7 @@ with your favourite run configurations above the status bar or below the toolbar
   `docker-compose` tasks, comments in the file, `${workspaceFolder}`, `${env:…}` and the `osx`/
   `linux`/`windows` variants. Tasks that need VS Code (`${file}`, `${input:…}`, only `dependsOn`,
   extension types such as `docker-run`) are shown greyed out with the reason. Imported
-  configurations are personal. Run the import again (+ | Runners Bar | *Import VS Code Tasks...*
+  configurations are personal. Run the import again (bar menu | Runners Bar | *Import VS Code Tasks...*
   or Find Action) to add the tasks you left out; tasks already imported are updated from the file.
   The notification can be switched off in the settings; it only comes back for new tasks.
 - **DDEV**: in a DDEV project (`.ddev/config.yaml` in the project or a direct subfolder) a
@@ -37,29 +37,29 @@ with your favourite run configurations above the status bar or below the toolbar
   `launch`, `ssh`, `logs -f`, `composer install`, `import-db`, `snapshot`) and the project's own
   commands from `.ddev/commands/*/` (with their `## Description:`) into a group *DDEV*. Commands
   DDEV ships itself (`#ddev-generated`) are listed but not preselected. They run in the terminal,
-  in the DDEV project folder. Single commands can also be added via + | *New Run Configuration* |
-  *DDEV*; the import is in + | Runners Bar | *Import DDEV Commands...*.
+  in the DDEV project folder. Single commands can also be added via bar menu | *New Run Configuration* |
+  *DDEV*; the import is in bar menu | Runners Bar | *Import DDEV Commands...*.
 - Imported tasks (VS Code and DDEV) run in the terminal only if they need one (ssh, database
   clients, `read`, `-it`, `ddev import-db`, …); the rest run in the Run window, where *Restart*
   and *Stop* work. The import dialog presets a *Terminal* checkbox per task accordingly. Existing
   tabs: Shell | *Execute in the Terminal* in their menu.
-- Configurations that Run Anything (or the IDE) created **temporarily** appear in the + menu
+- Configurations that Run Anything (or the IDE) created **temporarily** appear in the bar menu
   in the *Temporary Configurations* submenu, together with shell commands recently run through
   Run Anything (those become Shell Script configurations). Adding one asks for a name and keeps it
   for good.
-- **New Group…** in the + menu creates a group. The **Runners Bar** submenu hides the bar in the current
+- **New Group…** in the bar menu creates a group. The **Runners Bar** submenu hides the bar in the current
   project, and switches position (top/bottom), tab alignment (left/center/right) and the side of
   the controls (left/right).
-- **Groups**: as soon as there is more than one, a switcher appears next to the +. Use it to
+- **Groups**: as soon as there is more than one, a switcher appears next to the bar menu. Use it to
   switch, rename and delete groups. *Sort Tabs Alphabetically* tidies up a group after an import,
   *Remove Tabs Without Configuration…* drops tabs whose run configuration was deleted (both also
-  in the + menu's **Runners Bar** submenu). A configuration can be part of several groups. The last
+  in the bar menu's **Runners Bar** submenu). A configuration can be part of several groups. The last
   active group is remembered per project.
 - **Move or copy to another group**: *Move to Group* in the tab menu lists the other groups
   (greyed out where the configuration already is) and *New Group…*. Hold **⌥** (macOS) or
   **Ctrl** (Windows, Linux) to copy instead; the entry then reads *Copy to Group*. A
   notification confirms it, with *Undo* and *Switch to Group*.
-- **Team groups**: *Share with the Team…* (group switcher or the + menu's **Runners Bar** submenu,
+- **Team groups**: *Share with the Team…* (group switcher or the bar menu's **Runners Bar** submenu,
   or a checkbox in the settings) moves a group to `.idea/runnersBar.xml`. Commit that file and
   everyone gets the same tabs, e.g. *Start dev*, *Tests*, *Deploy staging*. Run configurations of a
   shared group that live only in your workspace are stored as project files
@@ -107,18 +107,18 @@ with your favourite run configurations above the status bar or below the toolbar
 - If a configuration no longer exists, its tab stays with a warning icon until you remove it.
   Renamed configurations are followed.
 - Show or hide the bar via **View | Appearance | Runners Bar** (default for all projects).
-- Show or hide it in the current project only: **Hide in This Project** in the + menu's
+- Show or hide it in the current project only: **Hide in This Project** in the bar menu's
   **Runners Bar** submenu, or **View | Appearance | Runners Bar in This Project**. The project
   setting wins over the default, so a project can also show the bar while it is off by default.
 - **Settings | Appearance & Behavior | Runners Bar**: a table with one row per setting: show or
   hide the bar, position *top* (below the toolbar) or *bottom* (above the status bar), tabs *left*,
-  *center* or *right*, controls (+, group switcher) *left* or *right*, menu arrow on the tabs shown
+  *center* or *right*, controls (bar menu, group switcher) *left* or *right*, menu arrow on the tabs shown
   or hidden (the menu is always available with a right click), and the menu button: a play arrow
   in a white pill (default), a filled or outlined play arrow, or a plus (all projects only). The first column holds the
   **defaults for all projects**, the second one the current project's value or *Same as all
   projects*. Below the table, every group of the project has a *Share with the team* checkbox,
   and *VS Code tasks* switches the import notification on or off.
-  The **Runners Bar** submenu of the + menu changes the current project only; choosing the default
+  The **Runners Bar** submenu of the bar menu changes the current project only; choosing the default
   value there makes the project follow the default again. New tabs are always appended on the right.
 
 Tabs, groups and the per-project visibility are stored per project in `.idea/workspace.xml`, so
@@ -188,6 +188,9 @@ magick $T/L.png $T/D.png +append marketplace/plugin-icon.png
    [Marketplace page](https://plugins.jetbrains.com/plugin/34701-runners-bar). JetBrains reviews
    every version before it is released.
 4. Tag the commit (`git tag v<version>`) and push.
+5. If `marketplace/custom-pages/` changed, paste the page into the Marketplace by hand (plugin page,
+   *Custom Pages* tab, Markdown). `publishPlugin` doesn't upload custom pages. `configuration.md` is the
+   *Configuration* tab: `.runners-bar` format, storage locations, settings.
 
 Signing is optional (variables `CERTIFICATE_CHAIN`, `PRIVATE_KEY`, `PRIVATE_KEY_PASSWORD`,
 see https://plugins.jetbrains.com/docs/intellij/plugin-signing.html).
@@ -221,7 +224,7 @@ the plugin is unloaded, the original state is restored.
 | `RunnersBarInstaller.kt` | Startup activity, attaching above the status bar, visibility |
 | `RunnersBarService.kt` | Project service, persistence, entries; `RunnersBarSharedService` for shared groups (`.idea/runnersBar.xml`) |
 | `RunnersBarState.kt` | Persisted state (personal and shared groups, entries, per-project values) |
-| `RunnersBarPanel.kt` | The bar, the "+" popup with its submenus, and drag and drop |
+| `RunnersBarPanel.kt` | The bar, the bar menu with its submenus, and drag and drop |
 | `RunnersBarTab.kt` | Tab with click-to-run and menu |
 | `AddToRunnersBarAction.kt` | *Add to Runners Bar...* in the context menu and the gutter run icon's menu |
 | `VsCodeTasks.kt` | Reads `.vscode/tasks.json` (JSON with comments) and translates tasks into commands |
