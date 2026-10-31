@@ -44,6 +44,7 @@ dependencies {
         }
         // Shell Script: optional, für „bar <Befehl>“ in Run Anything.
         bundledPlugin("com.jetbrains.sh")
+        bundledPlugin("com.intellij.modules.json")
     }
 }
 
@@ -55,6 +56,15 @@ intellijPlatform {
             untilBuild = provider { null }
         }
         changeNotes = """
+            <h3>2.2.0</h3>
+            <ul>
+              <li>Project file <code>.runners-bar</code>: describe groups and commands in a small JSON file in the project root, like
+                  <code>.editorconfig</code>. The bar reads it when the project opens and whenever it changes; handy for project
+                  templates, the team or an AI agent setting up a project. Opening the file in an IDE without Runners Bar suggests
+                  installing the plugin.</li>
+              <li>New menu button: a play arrow in a white pill. Prefer something plainer? Choose a filled or outlined play arrow
+                  or the plus under <i>Settings | Appearance &amp; Behavior | Runners Bar</i>.</li>
+            </ul>
             <h3>2.1.0</h3>
             <ul>
               <li>DDEV: in a DDEV project, import <code>ddev start</code>, <code>ddev ssh</code>, <code>ddev logs -f</code> and
@@ -169,6 +179,8 @@ intellijPlatform {
         ides {
             platformLocalPath?.let { local(it) }
             create(IntelliJPlatformType.PhpStorm, providers.gradleProperty("verifyOldestVersion").get())
+            // Neueste EAP: Der Marketplace prüft auch neuere Builds und meldet dort Deprecations
+            create(IntelliJPlatformType.PhpStorm, providers.gradleProperty("verifyNewestVersion").get())
         }
     }
 }

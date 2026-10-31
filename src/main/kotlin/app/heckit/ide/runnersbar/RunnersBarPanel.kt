@@ -7,6 +7,7 @@ import com.intellij.execution.configurations.ConfigurationFactory
 import com.intellij.execution.configurations.ConfigurationType
 import com.intellij.execution.impl.RunDialog
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.util.IconLoader
 import com.intellij.ide.IdeEventQueue
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationGroupManager
@@ -65,6 +66,14 @@ import javax.swing.SwingConstants
 import javax.swing.Timer
 import javax.swing.SwingUtilities
 
+/** Knopf fürs Menü der Leiste, siehe [ButtonIcon]. */
+private fun buttonIcon(): Icon = when (RunnersBarSettings.getInstance().buttonIcon) {
+    ButtonIcon.PILL -> IconLoader.getIcon("/icons/barAdd.svg", RunnersBarPanel::class.java)
+    ButtonIcon.PLAY -> IconLoader.getIcon("/icons/barPlay.svg", RunnersBarPanel::class.java)
+    ButtonIcon.PLAY_OUTLINE -> IconLoader.getIcon("/icons/barPlayOutline.svg", RunnersBarPanel::class.java)
+    ButtonIcon.PLUS -> AllIcons.General.Add
+}
+
 /** Die eigentliche Leiste: links „+“ und Gruppen-Umschalter, rechts davon die Tabs. */
 class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel(BorderLayout()) {
 
@@ -74,7 +83,7 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
     private val tracker = RunningTracker(project, parent) { refreshTabs() }
 
     internal val addButton = HoverLabel(
-        icon = AllIcons.General.Add,
+        icon = buttonIcon(),
         tooltip = RunnersBarBundle.message("bar.add.tooltip"),
     ).also { it.onClick = { showAddPopup(it) } }
 
@@ -155,6 +164,7 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
             TabsAlignment.RIGHT -> FlowLayout.RIGHT
         }
         tabComponents.forEach { it.showMenuArrow = settings.showMenuArrow }
+        addButton.icon = buttonIcon()
         // Die Tab-Fläche behält ihre Größe und würde sonst nicht neu angeordnet.
         tabs.revalidate()
         revalidate()

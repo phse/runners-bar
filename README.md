@@ -2,14 +2,14 @@
 
 <img src="marketplace/plugin-icon.png" width="360" alt="Runners Bar icon for light and dark themes">
 
-Plugin ID `app.heckit.ide.runnersbar` · Vendor heck\it ([heckit.app](https://heckit.app)) · [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/34701-runners-bar) · Source: https://github.com/phse/runners-bar · Support: [GitHub Sponsors](https://github.com/sponsors/phse) or [Ko-fi](https://ko-fi.com/phse_de)
+Plugin ID `app.heckit.ide.runnersbar` · Vendor heck\it ([heckit.app](https://heckit.app)) · [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/34701-runners-bar) · Source: https://github.com/phse/runners-bar · Support: [GitHub Sponsors](https://github.com/sponsors/phse) or [Ko-fi](https://ko-fi.com/phse_de) · Feedback and feature requests: [plugin-runners-bar@heckit.app](mailto:plugin-runners-bar@heckit.app)
 
 ![Runners Bar](marketplace/screenshots/01-runners-bar.png)
 
 A plugin for JetBrains IDEs (PhpStorm, IntelliJ IDEA, … 2026.1 and later) that adds a slim bar
 with your favourite run configurations above the status bar or below the toolbar.
 
-- **+** adds a run configuration (popup with search). **New Run Configuration** creates a new
+- The **menu button** (play arrow in a white pill, see the settings for plainer ones) adds a run configuration (popup with search). **New Run Configuration** creates a new
   one: pick the type, fill in the editor, and after *OK* it is added to the bar right away.
   Right-clicking an empty spot of the bar opens the + menu's **Runners Bar** submenu at the mouse.
 - **Run Anything** (double Ctrl): `bar npm run dev` (any command after the prefix) asks for a name,
@@ -66,6 +66,26 @@ with your favourite run configurations above the status bar or below the toolbar
   (`.idea/runConfigurations`) so they exist for everyone; the confirmation names them. Shared groups
   appear in their own section of the group switcher and are reloaded when the file changes (e.g.
   after `git pull`). *Stop Sharing…* moves a group back to your workspace.
+- **Project file `.runners-bar`**: a small JSON file (comments allowed) in the project root, like
+  `.editorconfig`. Its runners become shell run configurations in their groups when the project
+  opens and whenever the file changes. The file is the source: command, folder (`cwd`, relative to
+  the project), environment and `terminal` follow it; runners removed from the file are deleted.
+  Without `terminal`, it is detected from the command as for VS Code tasks. Handy for project
+  templates or an AI agent setting up a project:
+
+  ```jsonc
+  {
+    "groups": [
+      {
+        "name": "Plugin",
+        "runners": [
+          { "name": "Sandbox", "command": "./gradlew runIde", "terminal": false },
+          { "name": "Publish", "command": "./gradlew publishPlugin", "terminal": false }
+        ]
+      }
+    ]
+  }
+  ```
 - **Drag and drop**: drag tabs to reorder them, just like editor tabs: the tab follows the mouse
   and the other tabs make room. Dragged outside the bar, the tab turns red with a trash icon;
   dropping it there removes it from the group. Keep it outside for half a second and a list of
@@ -93,7 +113,8 @@ with your favourite run configurations above the status bar or below the toolbar
 - **Settings | Appearance & Behavior | Runners Bar**: a table with one row per setting: show or
   hide the bar, position *top* (below the toolbar) or *bottom* (above the status bar), tabs *left*,
   *center* or *right*, controls (+, group switcher) *left* or *right*, menu arrow on the tabs shown
-  or hidden (the menu is always available with a right click). The first column holds the
+  or hidden (the menu is always available with a right click), and the menu button: a play arrow
+  in a white pill (default), a filled or outlined play arrow, or a plus (all projects only). The first column holds the
   **defaults for all projects**, the second one the current project's value or *Same as all
   projects*. Below the table, every group of the project has a *Share with the team* checkbox,
   and *VS Code tasks* switches the import notification on or off.
@@ -204,6 +225,7 @@ the plugin is unloaded, the original state is restored.
 | `RunnersBarTab.kt` | Tab with click-to-run and menu |
 | `AddToRunnersBarAction.kt` | *Add to Runners Bar...* in the context menu and the gutter run icon's menu |
 | `VsCodeTasks.kt` | Reads `.vscode/tasks.json` (JSON with comments) and translates tasks into commands |
+| `RunnersBarFile.kt` | Reads `.runners-bar` and keeps its groups and run configurations in sync |
 | `VsCodeTasksImport.kt` | Import dialog, notification on project open, *Import VS Code Tasks...* action |
 | `RunnersBarExecution.kt` | Starting (run/debug) and detecting running processes |
 | `RunnersBarSettings.kt` | Defaults (position, tab and control alignment, menu arrow) and the settings page with per-project overrides |

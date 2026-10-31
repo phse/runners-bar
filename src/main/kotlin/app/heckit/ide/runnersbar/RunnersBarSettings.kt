@@ -23,6 +23,9 @@ enum class BarPosition { TOP, BOTTOM }
 /** Seite der Bedienelemente („+“, Gruppen-Umschalter). */
 enum class ControlsAlignment { LEFT, RIGHT }
 
+/** Knopf fürs Menü der Leiste: weiße Pille mit Play-Pfeil im CI-Verlauf, schlichter Play-Pfeil (gefüllt oder als Umriss, grau, im Dunkeln hell) oder das Plus der IDE. */
+enum class ButtonIcon { PILL, PLAY, PLAY_OUTLINE, PLUS }
+
 /** Ausrichtung der Tabs im übrigen Platz. */
 enum class TabsAlignment { LEFT, CENTER, RIGHT }
 
@@ -31,6 +34,7 @@ class RunnersBarSettingsState {
     var controlsAlignment: ControlsAlignment = ControlsAlignment.LEFT
     var tabsAlignment: TabsAlignment = TabsAlignment.LEFT
     var showMenuArrow: Boolean = true
+    var buttonIcon: ButtonIcon = ButtonIcon.PILL
 
     /** Präfix in Run Anything, das aus einem Befehl einen Tab macht (z. B. „bar npm run dev“). */
     var runAnythingPrefix: String = DEFAULT_RUN_ANYTHING_PREFIX
@@ -100,6 +104,15 @@ class RunnersBarSettings : PersistentStateComponent<RunnersBarSettingsState> {
             RunnersBarInstaller.reinstallAll()
         }
 
+    /** Gilt für alle Projekte. */
+    var buttonIcon: ButtonIcon
+        get() = state.buttonIcon
+        set(value) {
+            if (state.buttonIcon == value) return
+            state.buttonIcon = value
+            RunnersBarInstaller.reinstallAll()
+        }
+
     /** Gilt für alle Projekte; leer = Vorgabe. */
     var runAnythingPrefix: String
         get() = state.runAnythingPrefix.trim().ifEmpty { RunnersBarSettingsState.DEFAULT_RUN_ANYTHING_PREFIX }
@@ -164,6 +177,11 @@ class RunnersBarConfigurable(private val project: Project) : BoundConfigurable(R
                     RunnersBarBundle.message("settings.menuArrow"), shownHidden, ::shown,
                     settings::showMenuArrow.getter, settings::showMenuArrow.setter, service?.let { it::showMenuArrow },
                 ).rowComment(RunnersBarBundle.message("settings.menuArrow.comment"))
+                settingRow(
+                    RunnersBarBundle.message("settings.buttonIcon"), ButtonIcon.entries,
+                    { RunnersBarBundle.message("settings.buttonIcon.${it.name.lowercase()}") },
+                    settings::buttonIcon.getter, settings::buttonIcon.setter, null,
+                )
             }
             if (service != null) groupsGroup(service)
             if (RunnersBarShell.isAvailable) {

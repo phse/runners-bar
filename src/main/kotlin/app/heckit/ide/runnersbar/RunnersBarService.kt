@@ -338,6 +338,16 @@ class RunnersBarService(private val project: Project) : PersistentStateComponent
         })
     }
 
+    /** Schlüssel aller übernommenen Tasks, die mit [prefix] beginnen. */
+    fun importedKeys(prefix: String): List<String> = state.vsCodeTasks.map { it.key }.filter { it.startsWith(prefix) }
+
+    /** Gehört [settings] schon zu einem übernommenen Task (VS Code, DDEV, .runners-bar)? */
+    fun isImported(settings: RunnerAndConfigurationSettings): Boolean = state.vsCodeTasks.any { it.configId == settings.uniqueID }
+
+    fun forgetImported(key: String) {
+        state.vsCodeTasks.removeIf { it.key == key }
+    }
+
     /** Tasks, über die noch nicht entschieden wurde (importiert oder bewusst weggelassen). */
     fun notOffered(keys: List<String>): List<String> = keys.filter { it !in state.offeredVsCodeTasks }
 
