@@ -29,6 +29,8 @@ JSON with comments in the project root. Each runner becomes a Shell Script run c
 
 The file is authoritative. Changing a runner updates its configuration, and removing a runner deletes it. Runners without a terminal run in the Run window, so Restart and Stop work.
 
+Configurations are named `Name (Group)` (e.g. `Sandbox (Plugin)`), so equal names in several groups stay apart in the IDE's run configurations. Inside its group the tab shows just `Name`; this applies to every tab whose name ends in ` (Group)` of the group shown.
+
 ## Storage
 
 | Scope | Location | VCS |

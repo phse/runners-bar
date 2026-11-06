@@ -101,7 +101,7 @@ class RunnersBarTab(
             else -> AllIcons.Actions.Execute
         }
         main.icon = if (running && dragState != DragState.REMOVE) ExecutionUtil.getLiveIndicator(baseIcon) else baseIcon
-        main.text = name
+        main.text = tabText(name, service.activeGroupName)
         main.foreground = if (settings == null) UIUtil.getContextHelpForeground() else UIUtil.getLabelForeground()
         main.toolTipText = if (ghost) null else when {
             settings == null -> RunnersBarBundle.message("tab.tooltip.missing", name)
@@ -206,6 +206,7 @@ class RunnersBarTab(
                 JBPopupFactory.ActionSelectionAid.MNEMONICS,
                 true,
             )
+            .apply { setShowSubmenuOnHover(true) }
             .also { popup ->
                 popup.showAtBar(this, bar.layout)
                 reopenOnCopyKey(popup, copy)
@@ -418,3 +419,7 @@ class HoverLabel(icon: Icon? = null, text: String? = null, tooltip: String? = nu
         const val DRAG_THRESHOLD = 5
     }
 }
+
+/** „Sandbox (Plugin)“ heißt in der Gruppe „Plugin“ nur „Sandbox“ - die Gruppe steht schon im Reiter darüber. */
+internal fun tabText(name: String, group: String): String =
+    name.removeSuffix(" ($group)").ifBlank { name }

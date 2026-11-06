@@ -56,6 +56,14 @@ intellijPlatform {
             untilBuild = provider { null }
         }
         changeNotes = """
+            <h3>2.3.0</h3>
+            <ul>
+              <li>Runners from <code>.runners-bar</code> are always named <i>Name (Group)</i> in the IDE, so equal names in several
+                  groups no longer get the group appended at random. Inside its group the tab shows just <i>Name</i>.</li>
+              <li>Add menu: configurations from other groups are listed under <i>From Other Groups</i>, one submenu per group with
+                  the short tab names.</li>
+              <li>Submenus in the bar and tab menus open on hover, like the IDE's own menus.</li>
+            </ul>
             <h3>2.2.0</h3>
             <ul>
               <li>Project file <code>.runners-bar</code>: describe groups and commands in a small JSON file in the project root, like

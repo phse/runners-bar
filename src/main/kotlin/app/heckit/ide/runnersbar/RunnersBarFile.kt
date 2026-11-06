@@ -75,24 +75,29 @@ object RunnersBarFile {
         // Gleiche Namen in zwei Gruppen: nur der erste zählt.
         val unique = runners.distinctBy { it.task.key }
         for (runner in unique) {
+            // In der IDE immer „Name (Gruppe)“, damit gleiche Namen aus mehreren Gruppen eindeutig sind; die Leiste zeigt
+            // innerhalb der Gruppe nur „Name“ (siehe [tabText]).
+            val fullName = qualifiedName(runner.task.label, runner.task.group!!)
             var existing = service.importedSettings(runner.task.key)
-            // Eine gleichnamige Shell-Konfiguration (z. B. von Hand angelegt) übernehmen statt „Sandbox (Plugin)“ daneben anzulegen;
+            // Eine gleichnamige Shell-Konfiguration (z. B. von Hand angelegt) übernehmen statt eine Doppelung daneben anzulegen;
             // eine früher so angelegte Doppelung wird dabei wieder gelöscht.
-            val sameName = adoptable(project, runner.task.label)
-            if (sameName != null && existing?.name != runner.task.label) {
+            val sameName = if (existing == null) adoptable(project, fullName) ?: adoptable(project, runner.task.label) else adoptable(project, fullName)
+            if (sameName != null && sameName != existing) {
                 existing?.let(service::delete)
                 service.markImported(runner.task.key, sameName)
                 service.addToGroup(runner.task.group!!, sameName)
                 existing = sameName
             }
             if (existing == null) {
-                val settings = VsCodeTasksImport.importOne(project, runner.task, runner.inTerminal)
+                val settings = RunnersBarShell.createOrUpdate(project, runner.task, fullName, null, runner.inTerminal)
+                service.markImported(runner.task.key, settings)
                 service.addToGroup(runner.task.group!!, settings)
             } else {
                 if (RunnersBarShell.differs(existing, runner.task)) RunnersBarShell.createOrUpdate(project, runner.task, existing.name, existing)
                 if (RunnersBarShell.executesInTerminal(existing) != runner.inTerminal) {
                     RunnersBarShell.setExecuteInTerminal(project, existing, runner.inTerminal)
                 }
+                service.rename(existing, fullName)
             }
         }
         val keys = unique.mapTo(HashSet()) { it.task.key }
@@ -101,6 +106,8 @@ object RunnersBarFile {
             service.forgetImported(key)
         }
     }
+
+    fun qualifiedName(name: String, group: String): String = "$name ($group)"
 
     private fun adoptable(project: Project, name: String): RunnerAndConfigurationSettings? {
         val service = RunnersBarService.getInstance(project)

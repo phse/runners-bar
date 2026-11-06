@@ -172,6 +172,10 @@ class RunnersBarService(private val project: Project) : PersistentStateComponent
     /** Persönliche Gruppen zuerst, dann die geteilten. */
     private val groups: List<RunnersBarGroup> get() = state.groups + shared.groups
 
+    /** Namen der Gruppen, in denen [settings] schon als Reiter steht. */
+    fun groupsOf(settings: RunnerAndConfigurationSettings): List<String> =
+        groups.filter { group -> group.entries.any { it.configId == settings.uniqueID } }.map { it.name }
+
     private fun activeGroup(): RunnersBarGroup {
         if (groups.isEmpty()) state.groups.add(RunnersBarGroup())
         return groups.firstOrNull { it.name == state.activeGroup }

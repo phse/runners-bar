@@ -13,6 +13,7 @@ import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.actionSystem.ActionGroup
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
@@ -212,9 +213,22 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
         if (candidates.isEmpty() && temporary.isEmpty() && commands.isEmpty()) {
             group.add(popupAction(RunnersBarBundle.message("bar.add.nothing"), null, enabled = false) {})
         }
-        candidates.forEach { settings ->
+        // Erst, was noch in keiner Gruppe steht; danach je Gruppe ein Untermenü mit den Kurznamen.
+        val byGroup = candidates.map { it to service.groupsOf(it) }
+        byGroup.filter { it.second.isEmpty() }.forEach { (settings, _) ->
             group.add(popupAction(settings.name, settings.configuration.icon) { service.add(settings) })
         }
+        byGroup.flatMap { (settings, groups) -> groups.map { it to settings } }
+            .groupBy({ it.first }, { it.second })
+            .toSortedMap(compareBy<String> { it != RunnersBarGroup.DEFAULT_GROUP }.thenBy { it.lowercase() })
+            .also { if (it.isNotEmpty()) group.add(Separator.create(RunnersBarBundle.message("bar.add.otherGroups"))) }
+            .forEach { (name, list) ->
+                val sub = submenu(groupDisplayName(name), AllIcons.Nodes.Folder)
+                list.forEach { settings ->
+                    sub.add(popupAction(tabText(settings.name, name), settings.configuration.icon) { service.add(settings) })
+                }
+                group.add(sub)
+            }
         if (temporary.isNotEmpty() || commands.isNotEmpty()) {
             group.add(Separator.getInstance())
             val sub = submenu(RunnersBarBundle.message("bar.add.temporary"), AllIcons.Actions.Lightning)
@@ -823,6 +837,8 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
                 JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
                 true,
             )
+            // Untermenüs (z. B. Gruppen im Add-Menü) beim Darüberfahren öffnen, wie in den Menüs der IDE.
+            .apply { setShowSubmenuOnHover(true) }
             .also { if (at != null) it.show(at) else it.showAtBar(anchor, layout) }
 }
 
@@ -838,11 +854,12 @@ fun askConfigurationName(project: Project, initial: String, title: String): Stri
 fun submenu(text: String, icon: Icon?): DefaultActionGroup =
     DefaultActionGroup(text, true).apply { templatePresentation.icon = icon }
 
-fun popupAction(text: String, icon: Icon?, enabled: Boolean = true, block: () -> Unit): AnAction =
+fun popupAction(text: String, icon: Icon?, enabled: Boolean = true, secondary: String? = null, block: () -> Unit): AnAction =
     object : DumbAwareAction(text, null, icon) {
         override fun actionPerformed(e: AnActionEvent) = block()
         override fun update(e: AnActionEvent) {
             e.presentation.isEnabled = enabled
+            if (secondary != null) e.presentation.putClientProperty(ActionUtil.SECONDARY_TEXT, secondary)
         }
 
         override fun getActionUpdateThread() = ActionUpdateThread.EDT
