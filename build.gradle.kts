@@ -56,6 +56,17 @@ intellijPlatform {
             untilBuild = provider { null }
         }
         changeNotes = """
+            <h3>2.4.0</h3>
+            <ul>
+              <li>Import project scripts: scripts from <code>package.json</code> (npm, pnpm, yarn or bun, after the lockfile) and
+                  <code>composer.json</code>, Makefile targets and justfile recipes. From the bar menu (<i>Runners Bar | Import Project
+                  Scripts...</i>) or by right-clicking one of these files. Each file suggests its own group.</li>
+              <li>Pick the target group when importing and in <i>Add to Runners Bar...</i>: the suggestion, any existing group or a new
+                  name.</li>
+              <li>Run icons in the gutter of <code>.runners-bar</code>: click one to save the file and run that runner.</li>
+              <li>Import dialog: long texts wrap, the <i>Terminal</i> checkboxes are always visible, and each section names its
+                  source file.</li>
+            </ul>
             <h3>2.3.0</h3>
             <ul>
               <li>Runners from <code>.runners-bar</code> are always named <i>Name (Group)</i> in the IDE, so equal names in several

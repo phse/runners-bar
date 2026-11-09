@@ -10,6 +10,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
+import com.intellij.ui.dsl.builder.columns
 import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
@@ -25,26 +26,31 @@ import javax.swing.JComponent
 /** Woher Tasks kommen; Texte unter `<prefix>.*` im Bundle, gemeinsame unter `vscode.*`. */
 enum class TaskSource(private val prefix: String, val notificationGroup: String) {
     VSCODE("vscode", "Runners Bar VS Code Tasks"),
-    DDEV("ddev", "Runners Bar DDEV");
+    DDEV("ddev", "Runners Bar DDEV"),
+    SCRIPTS("scripts", "Runners Bar Scripts");
 
     fun find(basePath: String?): List<VsCodeTasks.Task> = when (this) {
         VSCODE -> VsCodeTasks.find(basePath)
         DDEV -> DdevCommands.find(basePath)
+        SCRIPTS -> ProjectScripts.find(basePath)
     }
 
     fun isPresent(basePath: String?): Boolean = when (this) {
         VSCODE -> VsCodeTasks.hasTasks(basePath)
         DDEV -> DdevCommands.hasProjects(basePath)
+        SCRIPTS -> ProjectScripts.hasScripts(basePath)
     }
 
     var offer: Boolean
         get() = when (this) {
             VSCODE -> RunnersBarSettings.getInstance().offerVsCodeTasks
             DDEV -> RunnersBarSettings.getInstance().offerDdevCommands
+            SCRIPTS -> RunnersBarSettings.getInstance().offerProjectScripts
         }
         set(value) = when (this) {
             VSCODE -> RunnersBarSettings.getInstance().offerVsCodeTasks = value
             DDEV -> RunnersBarSettings.getInstance().offerDdevCommands = value
+            SCRIPTS -> RunnersBarSettings.getInstance().offerProjectScripts = value
         }
 
     fun message(key: String, vararg params: Any): String = RunnersBarBundle.message("$prefix.$key", *params)
@@ -63,8 +69,8 @@ object VsCodeTasksImport {
     }
 
     /** Auswahl anzeigen und übernehmen; schon übernommene Tasks werden dabei auf den Stand der tasks.json gebracht. */
-    fun open(project: Project, source: TaskSource = TaskSource.VSCODE) {
-        val tasks = source.find(project.basePath)
+    fun open(project: Project, source: TaskSource = TaskSource.VSCODE, only: List<VsCodeTasks.Task>? = null) {
+        val tasks = only ?: source.find(project.basePath)
         if (tasks.isEmpty()) {
             Messages.showInfoMessage(project, source.message("none"), source.message("title"))
             return
@@ -79,13 +85,18 @@ object VsCodeTasksImport {
         if (!dialog.showAndGet()) return
         // Weggelassene Tasks gelten als entschieden: keine Meldung mehr, über das Menü bleiben sie importierbar.
         RunnersBarService.getInstance(project).markOffered(pending.map { it.key })
-        import(project, dialog.selected, dialog::inTerminal)
+        import(project, dialog.selected, dialog::inTerminal, dialog::groupFor)
     }
 
-    private fun import(project: Project, selected: List<VsCodeTasks.Task>, inTerminal: (VsCodeTasks.Task) -> Boolean) {
+    private fun import(
+        project: Project,
+        selected: List<VsCodeTasks.Task>,
+        inTerminal: (VsCodeTasks.Task) -> Boolean,
+        groupFor: (VsCodeTasks.Task) -> String,
+    ) {
         val service = RunnersBarService.getInstance(project)
-        selected.forEach { task -> service.addToGroup(groupName(project, task), importOne(project, task, inTerminal(task))) }
-        selected.firstOrNull()?.let { service.selectGroup(groupName(project, it)) }
+        selected.forEach { task -> service.addToGroup(groupFor(task), importOne(project, task, inTerminal(task))) }
+        selected.firstOrNull()?.let { service.selectGroup(groupFor(it)) }
     }
 
     /** Konfiguration für [task]; eine schon übernommene wird wiederverwendet. */
@@ -126,6 +137,13 @@ private class VsCodeTasksDialog(
 
     private val terminalBoxes = mutableMapOf<VsCodeTasks.Task, JBCheckBox>()
 
+    private val groupCombos = mutableMapOf<VsCodeTasks.Task, javax.swing.JComboBox<String>>()
+
+    /** Gewählte Zielgruppe; leer = Vorschlag. */
+    fun groupFor(task: VsCodeTasks.Task): String =
+        (groupCombos[task]?.editor?.item as? String ?: groupCombos[task]?.selectedItem as? String)?.trim()?.ifEmpty { null }
+            ?: VsCodeTasksImport.groupName(project, task)
+
     /** „Terminal“ je Task; vorbelegt mit [VsCodeTasks.Task.needsTerminal]. */
     fun inTerminal(task: VsCodeTasks.Task): Boolean = terminalBoxes[task]?.isSelected ?: task.needsTerminal
 
@@ -136,10 +154,19 @@ private class VsCodeTasksDialog(
     }
 
     override fun createCenterPanel(): JComponent = panel {
-        row { label(source.message("intro")) }
-        tasks.groupBy { it.folder }.forEach { (folder, folderTasks) ->
-            val group = VsCodeTasksImport.groupName(project, folderTasks.first())
-            group(RunnersBarBundle.message("vscode.folder", folder.ifEmpty { "." }, group)) {
+        row { text(source.message("intro"), maxLineLength = TEXT_WIDTH) }
+        // Je Zielgruppe ein Abschnitt; bei Projekt-Scripts mit der Quelldatei (package.json, Makefile …) als Überschrift.
+        tasks.groupBy { it.folder to VsCodeTasksImport.groupName(project, it) }.forEach { (key, folderTasks) ->
+            val (folder, group) = key
+            val origin = folderTasks.first().sourceFile?.let { if (folder.isEmpty()) it else "$folder/$it" } ?: folder.ifEmpty { "." }
+            group(origin) {
+                // Zielgruppe wie bei Changelists: vorgeschlagen, aber eine bestehende wählbar oder ein eigener Name.
+                row(RunnersBarBundle.message("vscode.targetGroup")) {
+                    val names = (listOf(group) + RunnersBarService.getInstance(project).groupNames).distinct()
+                    val combo = comboBox(names).columns(com.intellij.ui.dsl.builder.COLUMNS_MEDIUM)
+                        .applyToComponent { isEditable = true; selectedItem = group }.component
+                    folderTasks.forEach { groupCombos[it] = combo }
+                }
                 folderTasks.forEach { task ->
                     row {
                         val box = checkBox(task.label)
@@ -161,13 +188,16 @@ private class VsCodeTasksDialog(
             link(RunnersBarBundle.message("vscode.selectAll")) { boxes.values.forEach { it.isSelected = true } }
             link(RunnersBarBundle.message("vscode.selectNone")) { boxes.values.forEach { it.isSelected = false } }
         }
-        row { comment(RunnersBarBundle.message("vscode.terminal.comment")) }
+        row { comment(RunnersBarBundle.message("vscode.terminal.comment"), maxLineLength = TEXT_WIDTH) }
         if (alreadyImported > 0) row { comment(source.message("alreadyImported", alreadyImported)) }
     }.let { content ->
         // Bei vielen Tasks (mehrere Unterprojekte mit je eigener tasks.json) scrollen statt über den Bildschirm hinaus wachsen.
         JBScrollPane(content).apply {
             border = null
-            preferredSize = Dimension(minOf(content.preferredSize.width + 30, 760), minOf(content.preferredSize.height + 10, 560))
+            horizontalScrollBarPolicy = javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+            // Platz für den senkrechten Scrollbalken, sonst liegt er über den „Terminal“-Häkchen.
+            val scrollBar = verticalScrollBar.preferredSize.width
+            preferredSize = Dimension(minOf(content.preferredSize.width + scrollBar + 20, 820), minOf(content.preferredSize.height + 10, 560))
         }
     }
 }
@@ -222,6 +252,44 @@ class ImportDdevCommandsAction : DumbAwareAction() {
 
     override fun actionPerformed(e: AnActionEvent) {
         e.project?.let { VsCodeTasksImport.open(it, TaskSource.DDEV) }
+    }
+
+    override fun getActionUpdateThread() = ActionUpdateThread.BGT
+}
+
+/** Find Action: „Import Project Scripts...“ (package.json, composer.json, Makefile, justfile) */
+class ImportProjectScriptsAction : DumbAwareAction() {
+    override fun update(e: AnActionEvent) {
+        e.presentation.isEnabledAndVisible = e.project?.let { ProjectScripts.hasScripts(it.basePath) } == true
+    }
+
+    override fun actionPerformed(e: AnActionEvent) {
+        e.project?.let { VsCodeTasksImport.open(it, TaskSource.SCRIPTS) }
+    }
+
+    override fun getActionUpdateThread() = ActionUpdateThread.BGT
+}
+
+/** Umbruchbreite (Zeichen) der langen Texte im Import-Dialog, damit sie ihn nicht verbreitern. */
+private const val TEXT_WIDTH = 90
+
+/**
+ * Rechtsklick auf package.json, composer.json, Makefile oder justfile (Projektansicht, Editor, Editor-Reiter):
+ * „Scripts in die Runners Bar importieren...“ - derselbe Dialog, nur mit den Scripts dieser Datei.
+ */
+class ImportScriptsFromFileAction : DumbAwareAction() {
+    override fun update(e: AnActionEvent) {
+        val file = e.getData(com.intellij.openapi.actionSystem.CommonDataKeys.VIRTUAL_FILE)
+        e.presentation.isEnabledAndVisible = e.project != null && file != null && !file.isDirectory && ProjectScripts.isScriptFile(file.name)
+    }
+
+    override fun actionPerformed(e: AnActionEvent) {
+        val project = e.project ?: return
+        val file = e.getData(com.intellij.openapi.actionSystem.CommonDataKeys.VIRTUAL_FILE) ?: return
+        com.intellij.openapi.fileEditor.FileDocumentManager.getInstance().getDocument(file)
+            ?.let(com.intellij.openapi.fileEditor.FileDocumentManager.getInstance()::saveDocument)
+        val tasks = ProjectScripts.findIn(project.basePath, file.toNioPath())
+        VsCodeTasksImport.open(project, TaskSource.SCRIPTS, tasks)
     }
 
     override fun getActionUpdateThread() = ActionUpdateThread.BGT

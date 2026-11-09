@@ -88,7 +88,7 @@ class RunnersBarService(private val project: Project) : PersistentStateComponent
         }
 
     /** Behält eine temporäre oder unbekannte Konfiguration dauerhaft unter [name] und nimmt sie in die Leiste auf. */
-    fun keep(settings: RunnerAndConfigurationSettings, name: String) {
+    fun keep(settings: RunnerAndConfigurationSettings, name: String, group: String? = null) {
         if (isRegistered(settings)) {
             rename(settings, name)
         } else {
@@ -97,7 +97,15 @@ class RunnersBarService(private val project: Project) : PersistentStateComponent
             settings.isTemporary = false
             RunManager.getInstance(project).addConfiguration(settings)
         }
-        add(settings)
+        if (group == null || group == activeGroupName) {
+            add(settings)
+        } else {
+            // Andere (oder neue) Gruppe: dort ablegen und hinwechseln, damit man den neuen Tab sieht.
+            if (settings.isTemporary) RunManager.getInstance(project).makeStable(settings)
+            if (isShared(group)) storeForTeam(settings)
+            addToGroup(group, settings)
+            selectGroup(group)
+        }
     }
 
     /** Die Leiste lebt so lange wie das Projekt und wird bei Bedarf neu in den Frame gehängt. */

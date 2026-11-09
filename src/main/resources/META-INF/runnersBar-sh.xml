@@ -3,9 +3,16 @@
         <runAnything.executionProvider implementation="app.heckit.ide.runnersbar.RunnersBarRunAnythingProvider"/>
         <postStartupActivity implementation="app.heckit.ide.runnersbar.VsCodeTasksStartup"/>
         <postStartupActivity implementation="app.heckit.ide.runnersbar.RunnersBarFileStartup"/>
+        <codeInsight.lineMarkerProvider language="JSON" implementationClass="app.heckit.ide.runnersbar.RunnersBarFileLineMarker"/>
     </extensions>
     <actions>
         <action id="RunnersBar.ImportVsCodeTasks" class="app.heckit.ide.runnersbar.ImportVsCodeTasksAction" icon="AllIcons.ToolbarDecorator.Import"/>
         <action id="RunnersBar.ImportDdevCommands" class="app.heckit.ide.runnersbar.ImportDdevCommandsAction" icon="AllIcons.ToolbarDecorator.Import"/>
+        <action id="RunnersBar.ImportProjectScripts" class="app.heckit.ide.runnersbar.ImportProjectScriptsAction" icon="AllIcons.ToolbarDecorator.Import"/>
+        <action id="RunnersBar.ImportScriptsFromFile" class="app.heckit.ide.runnersbar.ImportScriptsFromFileAction" icon="AllIcons.ToolbarDecorator.Import">
+            <add-to-group group-id="ProjectViewPopupMenuRunGroup" anchor="last"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <add-to-group group-id="EditorTabPopupMenuEx" anchor="last"/>
+        </action>
     </actions>
 </idea-plugin>

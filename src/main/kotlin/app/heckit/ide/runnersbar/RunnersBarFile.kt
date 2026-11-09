@@ -107,6 +107,9 @@ object RunnersBarFile {
         }
     }
 
+    /** Schlüssel, unter dem der Runner [label] aus [group] übernommen ist (siehe [VsCodeTasks.Task.key]). */
+    fun key(group: String, label: String): String = "$KEY_PREFIX$group/$label"
+
     fun qualifiedName(name: String, group: String): String = "$name ($group)"
 
     private fun adoptable(project: Project, name: String): RunnerAndConfigurationSettings? {

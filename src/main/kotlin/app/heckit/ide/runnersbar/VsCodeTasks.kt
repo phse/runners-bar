@@ -50,6 +50,8 @@ object VsCodeTasks {
         val keyPrefix: String = "",
         /** Im Dialog vorausgewählt. */
         val preselected: Boolean = true,
+        /** Datei, aus der der Task stammt (package.json, Makefile …), als Überschrift im Dialog; null = nur der Ordner. */
+        val sourceFile: String? = null,
     ) {
         /** Wiedererkennung über erneute Importe hinweg. */
         val key: String get() = "$keyPrefix$folder/$label"

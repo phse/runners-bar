@@ -13,3 +13,6 @@ local.properties
 
 # Logo-Entwürfe bleiben lokal
 marketplace/icon-proposals/
+
+# Zukunftspläne bleiben lokal
+ROADMAP.md

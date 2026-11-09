@@ -86,7 +86,36 @@ object ScreenshotMaker {
             settings.tabsAlignment = previous.second
         }
         settingsShot(project, File(out, "06-settings.png"))
+        projectFileShot(project, frame, File(out, "07-project-file.png"))
         log.warn("Runners Bar: screenshots written to $out")
+    }
+
+    /** `.runners-bar` im Editor mit den Run-Icons im Gutter; die Datei entsteht erst hier, damit 01-05 unverändert bleiben. */
+    private fun projectFileShot(project: Project, frame: JFrame, file: File) {
+        val base = File(project.basePath ?: return)
+        File(base, ".runners-bar").writeText(
+            """
+            {
+              "groups": [
+                {
+                  "name": "Dev",
+                  "runners": [
+                    { "name": "Start", "command": "npm run dev", "terminal": false },
+                    { "name": "Tests", "command": "npm test", "terminal": false },
+                    { "name": "Lint", "command": "npm run lint", "terminal": false }
+                  ]
+                }
+              ]
+            }
+            """.trimIndent() + "\n",
+        )
+        edt {
+            com.intellij.openapi.vfs.LocalFileSystem.getInstance().refreshAndFindFileByIoFile(File(base, ".runners-bar"))?.let {
+                FileEditorManager.getInstance(project).openFile(it, true)
+            }
+        }
+        Thread.sleep(5000)
+        shot(frame, file)
     }
 
     /** Die Einstellungsseite in einem eigenen, unsichtbaren Fenster gezeichnet. */

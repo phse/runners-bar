@@ -322,6 +322,11 @@ class RunnersBarPanel(private val project: Project, parent: Disposable) : JPanel
                     VsCodeTasksImport.open(project, TaskSource.DDEV)
                 })
             }
+            if (RunnersBarShell.isAvailable && ProjectScripts.hasScripts(project.basePath)) {
+                add(popupAction(RunnersBarBundle.message("action.RunnersBar.ImportProjectScripts.text"), AllIcons.ToolbarDecorator.Import) {
+                    VsCodeTasksImport.open(project, TaskSource.SCRIPTS)
+                })
+            }
             add(Separator.create(RunnersBarBundle.message("settings.position")))
             listOf(BarPosition.TOP, BarPosition.BOTTOM).forEach { value ->
                 add(popupAction(RunnersBarBundle.message("settings.position.${value.name.lowercase()}"), check(current.position == value)) {

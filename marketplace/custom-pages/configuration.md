@@ -27,6 +27,8 @@ JSON with comments in the project root. Each runner becomes a Shell Script run c
 | `runners[].env` | object of strings | – |
 | `runners[].terminal` | boolean: terminal or Run window | detected from the command (`ssh`, DB clients, `read`, `-it` → terminal) |
 
+The editor shows a run icon in the gutter next to each runner (at `name`, or at `command` without a name). Clicking it saves the file, syncs the bar and runs the runner.
+
 The file is authoritative. Changing a runner updates its configuration, and removing a runner deletes it. Runners without a terminal run in the Run window, so Restart and Stop work.
 
 Configurations are named `Name (Group)` (e.g. `Sandbox (Plugin)`), so equal names in several groups stay apart in the IDE's run configurations. Inside its group the tab shows just `Name`; this applies to every tab whose name ends in ` (Group)` of the group shown.
@@ -59,7 +61,7 @@ Shared groups reload when the file changes, e.g. after `git pull`. To share a gr
 
 **Groups in *project***: *Share with the team* per group. Shared groups are moved to `.idea/runnersBar.xml`.
 
-**VS Code tasks / DDEV**: offer an import when a project opens. Both are on by default.
+**VS Code tasks / DDEV / Project scripts**: offer an import when a project opens. VS Code and DDEV are on by default, project scripts off.
 
 **Run Anything (All Projects)**: prefix, default `bar`.
 
@@ -67,6 +69,16 @@ Shared groups reload when the file changes, e.g. after `git pull`. To share a gr
 
 - **`.vscode/tasks.json`** (root or a direct subfolder): `shell`, `process`, `npm`, `gulp`, `grunt`, `jake`, `docker-build`, `docker-compose`, plus `${workspaceFolder}`, `${env:…}` and the `osx`/`linux`/`windows` variants. Tasks that need `${file}`, `${input:…}` or only `dependsOn` are skipped. Imports run again idempotently.
 - **DDEV** (`.ddev/config.yaml`): imports the standard `ddev` commands and `.ddev/commands/*/` into the group *DDEV*.
+- **Project scripts** (root or a direct subfolder; right-click a file for any depth):
+
+| File | Command | Group | Not preselected / skipped |
+| --- | --- | --- | --- |
+| `package.json` `scripts` | `npm`/`pnpm`/`yarn`/`bun run <name>` (by lockfile) | `npm` (etc.) | `pre…`/`post…` hooks, `install`, `prepare`, `postinstall`, … |
+| `composer.json` `scripts` | `composer run-script <name>`, description from `scripts-descriptions` | `Composer` | `pre-…`/`post-…` events |
+| `Makefile` | `make <target>`, description from `target: ## text` or `## text` above | `Make` | `.PHONY` and other special targets, `%` patterns, variables |
+| `justfile` | `just <recipe>`, description from the comment above | `just` | `_private` / `[private]` recipes; recipes with required parameters greyed out |
+
+In a subfolder the folder name is appended (`npm web`). Every import dialog lets you change the target group per section: an existing group or a new name.
 
 ## Run Anything
 

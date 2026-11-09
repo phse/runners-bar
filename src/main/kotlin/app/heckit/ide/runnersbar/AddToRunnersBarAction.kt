@@ -10,6 +10,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
+import com.intellij.ui.dsl.builder.columns
 
 /**
  * „Zur Runners Bar hinzufügen…“ im Kontextmenü (Editor, Projektansicht), z. B. auf einem Skript in der package.json.
@@ -37,8 +38,9 @@ class AddToRunnersBarAction : AnAction(), DumbAware {
         }
 
         fun addWithName(project: Project, settings: RunnerAndConfigurationSettings) {
-            val name = askConfigurationName(project, settings.name, RunnersBarBundle.message("dialog.addToBar.title")) ?: return
-            RunnersBarService.getInstance(project).keep(settings, name)
+            val dialog = AddToBarDialog(project, settings.name)
+            if (!dialog.showAndGet()) return
+            RunnersBarService.getInstance(project).keep(settings, dialog.configName, dialog.group)
         }
     }
 }
@@ -58,4 +60,38 @@ class AddToRunnersBarGutterGroup : ActionGroup(), DumbAware {
     }
 
     override fun getActionUpdateThread() = ActionUpdateThread.BGT
+}
+
+/** Name und Zielgruppe (vorbelegt: aktive Gruppe; bestehende wählbar oder neuer Name) für „Zur Runners Bar hinzufügen…“. */
+private class AddToBarDialog(private val project: Project, initialName: String) : com.intellij.openapi.ui.DialogWrapper(project) {
+    private val service = RunnersBarService.getInstance(project)
+    private val nameField = javax.swing.JTextField(initialName)
+    private val groupCombo = com.intellij.openapi.ui.ComboBox((listOf(service.activeGroupName) + service.groupNames).distinct().toTypedArray()).apply {
+        isEditable = true
+        selectedItem = service.activeGroupName
+    }
+
+    val configName: String get() = nameField.text.trim()
+
+    val group: String get() = ((groupCombo.editor.item as? String) ?: (groupCombo.selectedItem as? String))?.trim()?.ifEmpty { null } ?: service.activeGroupName
+
+    init {
+        title = RunnersBarBundle.message("dialog.addToBar.title")
+        init()
+    }
+
+    override fun getPreferredFocusedComponent() = nameField
+
+    override fun doValidate(): com.intellij.openapi.ui.ValidationInfo? =
+        if (configName.isEmpty()) com.intellij.openapi.ui.ValidationInfo(RunnersBarBundle.message("group.name.empty"), nameField) else null
+
+    override fun createCenterPanel() = com.intellij.ui.dsl.builder.panel {
+        row(RunnersBarBundle.message("group.name.label")) {
+            cell(nameField).columns(com.intellij.ui.dsl.builder.COLUMNS_LARGE).focused()
+        }
+        row(RunnersBarBundle.message("vscode.targetGroup")) {
+            cell(groupCombo).columns(com.intellij.ui.dsl.builder.COLUMNS_LARGE)
+                .comment(RunnersBarBundle.message("dialog.addToBar.groupComment"))
+        }
+    }
 }

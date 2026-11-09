@@ -20,7 +20,8 @@ with your favourite run configurations above the status bar or below the toolbar
   bundled Shell Script plugin.
 - **From anywhere**: right-click a place the IDE can run (a script in `package.json`, a test, a
   main method, …) or open the menu of the green run icon in the gutter and choose **Add to Runners
-  Bar...**. It asks for a name, creates the configuration if needed and adds it to the current group.
+  Bar...**. It asks for a name and a group (the current one, any other or a new name), creates the configuration if
+  needed and adds it there.
 - **VS Code tasks**: if the project (or one of its direct subfolders) has a `.vscode/tasks.json`,
   a notification offers to import the tasks (*Import...*, *Not now*, *Don't offer again*). The
   import dialog lists every task with its command; pick the ones you want. Each folder becomes a
@@ -39,7 +40,16 @@ with your favourite run configurations above the status bar or below the toolbar
   DDEV ships itself (`#ddev-generated`) are listed but not preselected. They run in the terminal,
   in the DDEV project folder. Single commands can also be added via bar menu | *New Run Configuration* |
   *DDEV*; the import is in bar menu | Runners Bar | *Import DDEV Commands...*.
-- Imported tasks (VS Code and DDEV) run in the terminal only if they need one (ssh, database
+- **Project scripts**: bar menu | Runners Bar | *Import Project Scripts...* (or Find Action) lists the scripts of
+  `package.json` (run with npm, pnpm, yarn or bun, after the lockfile) and `composer.json`, the targets of a `Makefile`
+  (descriptions from `## …`) and the recipes of a `justfile` (description from the comment above), in the project and its
+  direct subfolders. Lifecycle scripts (`pre…`/`post…`, `postinstall`, Composer events) are listed but not preselected;
+  justfile recipes that need arguments are greyed out. Right-click one of these files (project view, editor or editor
+  tab) and choose *Import Scripts to Runners Bar...* to import just that file, at any depth. A notification on project
+  open can be switched on in the settings (off by default, as nearly every project has a `package.json`).
+- **Target group**: every import dialog (VS Code, DDEV, project scripts) suggests a group per section, like a
+  changelist: keep it, pick an existing group or type a new name.
+- Imported tasks (VS Code, DDEV and project scripts) run in the terminal only if they need one (ssh, database
   clients, `read`, `-it`, `ddev import-db`, …); the rest run in the Run window, where *Restart*
   and *Stop* work. The import dialog presets a *Terminal* checkbox per task accordingly. Existing
   tabs: Shell | *Execute in the Terminal* in their menu.
@@ -71,7 +81,8 @@ with your favourite run configurations above the status bar or below the toolbar
   opens and whenever the file changes. The file is the source: command, folder (`cwd`, relative to
   the project), environment and `terminal` follow it; runners removed from the file are deleted.
   Without `terminal`, it is detected from the command as for VS Code tasks. Handy for project
-  templates or an AI agent setting up a project:
+  templates or an AI agent setting up a project. A run icon in the gutter next to each runner saves the file and runs
+  it:
 
   ```jsonc
   {
@@ -202,8 +213,8 @@ see https://plugins.jetbrains.com/docs/intellij/plugin-signing.html).
 ```
 
 Copies `marketplace/demo-project` to `/Users/Shared/demo-shop` (so no user path shows up in the
-images), opens it in the sandbox, starts `dev` and writes six PNGs to `marketplace/screenshots/`
-(bar, tab menu, groups, add, bar at the top, settings page). The IDE paints its own window for
+images), opens it in the sandbox, starts `dev` and writes seven PNGs to `marketplace/screenshots/`
+(bar, tab menu, groups, add, bar at the top, settings page, `.runners-bar` with gutter icons). The IDE paints its own window for
 this, no screen recording permission is needed. The helper lives in `src/screenshot/` and is only compiled with
 `-Pscreenshots`, never into a release.
 

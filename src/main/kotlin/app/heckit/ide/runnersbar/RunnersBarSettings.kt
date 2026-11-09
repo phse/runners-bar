@@ -45,6 +45,12 @@ class RunnersBarSettingsState {
     /** Beim Öffnen eines Projekts melden, wenn es DDEV nutzt und Befehle noch nicht übernommen sind. */
     var offerDdevCommands: Boolean = true
 
+    /**
+     * Beim Öffnen eines Projekts Scripts aus package.json, composer.json, Makefile und justfile anbieten. Aus, weil fast
+     * jedes Projekt eine package.json hat - die Meldung käme sonst überall.
+     */
+    var offerProjectScripts: Boolean = false
+
     companion object {
         const val DEFAULT_RUN_ANYTHING_PREFIX = "bar"
     }
@@ -132,6 +138,12 @@ class RunnersBarSettings : PersistentStateComponent<RunnersBarSettingsState> {
             state.offerDdevCommands = value
         }
 
+    var offerProjectScripts: Boolean
+        get() = state.offerProjectScripts
+        set(value) {
+            state.offerProjectScripts = value
+        }
+
     companion object {
         fun getInstance(): RunnersBarSettings =
             ApplicationManager.getApplication().getService(RunnersBarSettings::class.java)
@@ -197,6 +209,13 @@ class RunnersBarConfigurable(private val project: Project) : BoundConfigurable(R
                         checkBox(RunnersBarBundle.message("settings.ddev.offer"))
                             .bindSelected(settings::offerDdevCommands)
                             .comment(RunnersBarBundle.message("settings.ddev.comment"))
+                    }
+                }
+                group(RunnersBarBundle.message("settings.scripts")) {
+                    row {
+                        checkBox(RunnersBarBundle.message("settings.scripts.offer"))
+                            .bindSelected(settings::offerProjectScripts)
+                            .comment(RunnersBarBundle.message("settings.scripts.comment"))
                     }
                 }
             }

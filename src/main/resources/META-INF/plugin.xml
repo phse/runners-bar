@@ -19,12 +19,13 @@
   <li><b>Drag and drop</b>: reorder tabs by dragging them like editor tabs; drag a tab out of the bar and drop it to remove it, or wait a moment and drop it on another group to move it there (hold Option/Ctrl to copy); press Escape to cancel.</li>
   <li><b>Move or copy to another group</b> from the tab menu, with <i>Undo</i> in the confirmation.</li>
   <li><b>VS Code tasks</b>: import the tasks from <code>.vscode/tasks.json</code> (also from subfolders) as run configurations, one group per folder. Pick the tasks you want; shell, npm, gulp, grunt, jake, docker-build and docker-compose tasks are supported.</li>
-  <li><b>Project file <code>.runners-bar</code></b>: describe groups and commands in a small JSON file in the project root, like <code>.editorconfig</code>. The bar picks it up when the project opens and whenever the file changes; handy for templates, the team or an AI agent setting up a project.</li>
+  <li><b>Project file <code>.runners-bar</code></b>: describe groups and commands in a small JSON file in the project root, like <code>.editorconfig</code>. The bar picks it up when the project opens and whenever the file changes; handy for templates, the team or an AI agent setting up a project. Run icons in the gutter start a runner straight from the file.</li>
   <li><b>DDEV</b>: in a DDEV project, import <code>ddev start</code>, <code>ddev ssh</code>, <code>ddev logs -f</code> and friends plus the project's own commands from <code>.ddev/commands</code> into a <i>DDEV</i> group, or add single commands via <i>New Run Configuration | DDEV</i>.</li>
+  <li><b>Project scripts</b>: import scripts from <code>package.json</code> (npm, pnpm, yarn, bun) and <code>composer.json</code>, Makefile targets and justfile recipes, from the bar menu or by right-clicking the file. Pick the group for them, like a changelist.</li>
   <li><b>New configurations</b>: create a run configuration from the bar menu, it lands in the bar right away.</li>
   <li><b>Your layout</b>: place the bar below the toolbar or above the status bar, align the tabs left, center or right, put the controls on either side, hide the menu arrow if you prefer the right click and pick the menu button (play arrow in a white pill, plain play arrow or plus). Set your defaults once and override them per project.</li>
   <li><b>Run Anything</b>: type <code>bar npm run dev</code> (or any shell command) in Run Anything to create a tab for it and run it. Configurations that Run Anything creates temporarily are kept for good once you add them to the bar.</li>
-  <li><b>From anywhere</b>: right-click a script in <code>package.json</code>, a test or a main method (or use the run icon in the gutter) and choose <b>Add to Runners Bar...</b>. Name it and the tab is there.</li>
+  <li><b>From anywhere</b>: right-click a script in <code>package.json</code>, a test or a main method (or use the run icon in the gutter) and choose <b>Add to Runners Bar...</b>. Name it, pick a group and the tab is there.</li>
   <li><b>Running state</b>: running configurations are highlighted.</li>
   <li>Follows renamed configurations, keeps the bar per project and stores it in your personal workspace (not in version control), except for groups you share.</li>
 </ul>
@@ -60,6 +61,7 @@
         <!-- Bleibt stehen, bis man sich entscheidet: Import, Jetzt nicht oder Nicht mehr anbieten. -->
         <notificationGroup id="Runners Bar VS Code Tasks" displayType="STICKY_BALLOON" key="notification.group.vscode"/>
         <notificationGroup id="Runners Bar DDEV" displayType="STICKY_BALLOON" key="notification.group.ddev"/>
+        <notificationGroup id="Runners Bar Scripts" displayType="STICKY_BALLOON" key="notification.group.scripts"/>
         <projectConfigurable parentId="appearance" id="app.heckit.ide.runnersbar"
                                  instance="app.heckit.ide.runnersbar.RunnersBarConfigurable"
                                  key="settings.displayName" bundle="messages.RunnersBarBundle"/>
