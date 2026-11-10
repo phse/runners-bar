@@ -68,6 +68,7 @@
         <postStartupActivity implementation="app.heckit.ide.runnersbar.RunnersBarStartup"/>
         <!-- Ohne installiertes Plugin schlägt die IDE es beim Öffnen einer .runners-bar vor. -->
         <fileType name="JSON" fileNames=".runners-bar"/>
+        <json.jsonStandardComplianceProvider implementation="app.heckit.ide.runnersbar.RunnersBarFileComments"/>
     </extensions>
 
     <actions>
