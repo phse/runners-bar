@@ -56,6 +56,10 @@ intellijPlatform {
             untilBuild = provider { null }
         }
         changeNotes = """
+            <h3>2.4.2</h3>
+            <ul>
+              <li>Fixed: opening a project with a shared group in <code>.idea/runnersBar.xml</code> could freeze the IDE.</li>
+            </ul>
             <h3>2.4.1</h3>
             <ul>
               <li>Comments in <code>.runners-bar</code> are no longer flagged as errors in the editor.</li>

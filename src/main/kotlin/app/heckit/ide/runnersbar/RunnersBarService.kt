@@ -7,6 +7,7 @@ import com.intellij.openapi.util.text.NaturalComparator
 import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.execution.impl.RunDialog
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
@@ -503,7 +504,11 @@ class RunnersBarSharedService(private val project: Project) : PersistentStateCom
 
     override fun loadState(loaded: RunnersBarSharedState) {
         state = loaded
-        if (!project.isDisposed) project.messageBus.syncPublisher(RunnersBarListener.TOPIC).entriesChanged()
+        // Erst danach melden: loadState läuft auch beim Anlegen des Service. Ein synchroner Aufruf ließ die Leiste den
+        // Service erneut anfordern, während er noch initialisiert wurde - die IDE fror beim Öffnen des Projekts ein.
+        ApplicationManager.getApplication().invokeLater({
+            if (!project.isDisposed) project.messageBus.syncPublisher(RunnersBarListener.TOPIC).entriesChanged()
+        }, project.disposed)
     }
 
     companion object {
